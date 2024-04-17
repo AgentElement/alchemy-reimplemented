@@ -1,6 +1,6 @@
 use lambda_calculus::data::num::church::pred;
 use lambda_calculus::*;
-use rand::{seq::IteratorRandom, thread_rng, Rng};
+use rand::{thread_rng, Rng};
 use std::io::{self, BufRead, BufReader};
 
 #[derive(Debug)]
@@ -27,50 +27,69 @@ impl Soup {
         self.expressions.append(expressions);
     }
 
-    fn react(&mut self) {
+    fn react(&mut self) -> Option<Vec<usize>> {
         let mut rng = thread_rng();
 
         let n_expr = self.expressions.len();
 
         // Choose two distinct expressions randomly from the soup
         let i = rng.gen_range(0..n_expr);
-        let left = &self.expressions.remove(i);
-        
-        let j = rng.gen_range(0..n_expr - 1);
-        let right = &self.expressions.remove(j);
+        let left = &self.expressions.swap_remove(i);
 
-        println!("left: {:?}", left);
-        println!("right: {:?}", right);
+        let j = rng.gen_range(0..n_expr - 1);
+        let right = &self.expressions.swap_remove(j);
+
+        // println!("left: {:?}", left);
+        // println!("right: {:?}", right);
 
         // Collide expressions and add results to soup
+        let mut buf = Vec::with_capacity(self.reaction_rules.len());
+        let mut collisions = Vec::with_capacity(self.reaction_rules.len());
         for rule in &self.reaction_rules {
             let result = collide(rule.clone(), left.clone(), right.clone());
-            println!("result: {:?}", result);
-            self.expressions.push(result);
+            if let Some((value, n)) = result {
+                buf.push(value);
+                collisions.push(n);
+            } else {
+                return None;
+            }
+            // println!("result: {:?}", result);
         }
+        self.expressions.append(&mut buf);
 
-        // Remove additional expressions, if there are more than two rules 
+        // Remove additional expressions, if there are more than two rules
         if self.discard {
             for _ in 0..(self.reaction_rules.len() - 2) {
                 let k = rng.gen_range(0..self.expressions.len());
-                self.expressions.remove(k);
-                println!("removed: {:?}", right);
+                self.expressions.swap_remove(k);
+                // println!("removed: {:?}", right);
             }
         }
+
+        Some(collisions)
     }
 
     fn simulate_for(&mut self, n: usize) {
-        for _ in 0..n {
-            self.react();
+        for i in 0..n {
+            println!(
+                "reaction {:?} {}",
+                i,
+                if self.react().is_some() { "successful" } else { "failed" }
+            )
             // self.expressions.iter().filter(|e| is_identity(e))
         }
     }
 }
 
-fn collide(rule: Term, left: Term, right: Term) -> Term {
+fn collide(rule: Term, left: Term, right: Term) -> Option<(Term, usize)> {
     let mut expr = app!(rule, left, right);
-    expr.reduce(HNO, 100000);
-    expr
+    let limit = 100000;
+    let n = expr.reduce(HNO, limit);
+    if n == limit {
+        None
+    } else {
+        Some((expr, n))
+    }
 }
 
 fn lambdac_example() {
@@ -82,7 +101,6 @@ fn lambdac_example() {
         println!("{}", expr);
     }
 }
-
 
 fn main() {
     let mut expression_strings = Vec::<String>::new();
@@ -97,7 +115,6 @@ fn main() {
         }
     }
 
-
     let mut expressions = expression_strings
         .iter()
         .map(|s| parse(s, Classic).unwrap())
@@ -105,7 +122,6 @@ fn main() {
     let mut soup = Soup::new();
     soup.perturb(&mut expressions);
 
-    println!{"Soup begins in state:\n{:?}", soup}
-    soup.simulate_for(100);
-    println!{"Terminal soup state:\n{:?}", soup}
+    soup.simulate_for(10000);
+    println! {"Terminal soup state:\n{:?}", soup}
 }
