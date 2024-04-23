@@ -10,6 +10,13 @@ struct Soup {
     discard: bool,
 }
 
+struct ReactionResult {
+    pub sizes: Vec<u32>,
+    pub reductions: Vec<usize>,
+    pub left_size: u32,
+    pub right_size: u32,
+}
+
 impl Soup {
     fn new() -> Self {
         Soup {
@@ -27,7 +34,7 @@ impl Soup {
         self.expressions.append(expressions);
     }
 
-    fn react(&mut self) -> Option<Vec<usize>> {
+    fn react(&mut self) -> Option<ReactionResult> {
         let mut rng = thread_rng();
 
         let n_expr = self.expressions.len();
@@ -35,26 +42,27 @@ impl Soup {
         // Choose two distinct expressions randomly from the soup
         let i = rng.gen_range(0..n_expr);
         let left = &self.expressions.swap_remove(i);
+        let left_size = left.max_depth();
 
         let j = rng.gen_range(0..n_expr - 1);
         let right = &self.expressions.swap_remove(j);
-
-        // println!("left: {:?}", left);
-        // println!("right: {:?}", right);
+        let right_size = right.max_depth();
 
         // Collide expressions and add results to soup
         let mut buf = Vec::with_capacity(self.reaction_rules.len());
-        let mut collisions = Vec::with_capacity(self.reaction_rules.len());
+        let mut reductions = Vec::with_capacity(self.reaction_rules.len());
+        let mut sizes = Vec::with_capacity(self.reaction_rules.len());
         for rule in &self.reaction_rules {
             let result = collide(rule.clone(), left.clone(), right.clone());
             if let Some((value, n)) = result {
+                sizes.push(value.max_depth());
+                reductions.push(n);
                 buf.push(value);
-                collisions.push(n);
             } else {
                 return None;
             }
-            // println!("result: {:?}", result);
         }
+
         self.expressions.append(&mut buf);
 
         // Remove additional expressions, if there are more than two rules
@@ -62,11 +70,15 @@ impl Soup {
             for _ in 0..(self.reaction_rules.len() - 2) {
                 let k = rng.gen_range(0..self.expressions.len());
                 self.expressions.swap_remove(k);
-                // println!("removed: {:?}", right);
             }
         }
 
-        Some(collisions)
+        Some(ReactionResult {
+            sizes,
+            reductions,
+            left_size,
+            right_size,
+        })
     }
 
     fn simulate_for(&mut self, n: usize) {
@@ -74,10 +86,18 @@ impl Soup {
             println!(
                 "reaction {:?} {}",
                 i,
-                if self.react().is_some() { "successful" } else { "failed" }
+                if let Some(result) = self.react() {
+                    format!("successful with {} reductions between expressions of sizes {} and {}, and produces an expression of size {}",
+                            result.left_size, result.right_size, result.reductions[0], result.sizes[0])
+                } else {
+                    "failed".to_string()
+                }
             )
-            // self.expressions.iter().filter(|e| is_identity(e))
         }
+    }
+
+    fn remove_isomorphic_to(&mut self, copy: Term) -> bool {
+        false
     }
 }
 
@@ -122,6 +142,6 @@ fn main() {
     let mut soup = Soup::new();
     soup.perturb(&mut expressions);
 
-    soup.simulate_for(10000);
+    soup.simulate_for(100000);
     println! {"Terminal soup state:\n{:?}", soup}
 }
