@@ -6,5 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+clap = { version = "4.5.4", features = ["derive"] }
 lambda_calculus = { git = "https://github.com/AgentElement/lambda_calculus" }
 rand = "0.8"

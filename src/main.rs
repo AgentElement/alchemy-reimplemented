@@ -1,3 +1,4 @@
+use clap::Parser;
 use lambda_calculus::data::num::church::pred;
 use lambda_calculus::*;
 use rand::{thread_rng, Rng};
@@ -15,6 +16,15 @@ struct ReactionResult {
     pub reductions: Vec<usize>,
     pub left_size: u32,
     pub right_size: u32,
+}
+
+
+// #[derive(Parser)]
+#[command(version, about, long_about = None)]
+struct Cli {
+    reduction_cutoff: Option<u32>,
+    sample_frequency: Option<u32>,
+    
 }
 
 impl Soup {
@@ -36,7 +46,6 @@ impl Soup {
 
     fn react(&mut self) -> Option<ReactionResult> {
         let mut rng = thread_rng();
-
         let n_expr = self.expressions.len();
 
         // Choose two distinct expressions randomly from the soup
@@ -48,10 +57,12 @@ impl Soup {
         let right = &self.expressions.swap_remove(j);
         let right_size = right.max_depth();
 
-        // Collide expressions and add results to soup
+        // Record collision information 
         let mut buf = Vec::with_capacity(self.reaction_rules.len());
         let mut reductions = Vec::with_capacity(self.reaction_rules.len());
         let mut sizes = Vec::with_capacity(self.reaction_rules.len());
+
+        // Collide expressions
         for rule in &self.reaction_rules {
             let result = collide(rule.clone(), left.clone(), right.clone());
             if let Some((value, n)) = result {
@@ -63,6 +74,7 @@ impl Soup {
             }
         }
 
+        // Add results to soup
         self.expressions.append(&mut buf);
 
         // Remove additional expressions, if there are more than two rules
@@ -73,6 +85,7 @@ impl Soup {
             }
         }
 
+        // Return collision log
         Some(ReactionResult {
             sizes,
             reductions,
