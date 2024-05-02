@@ -5,10 +5,28 @@ use rand::{thread_rng, Rng};
 use std::io::{self, BufRead, BufReader};
 
 #[derive(Debug)]
+struct Filter {
+    identity: bool,
+    unbound: bool,
+}
+
+impl Filter {
+    fn new() -> Self {
+        Filter {
+            identity: false,
+            unbound: false
+        }
+    }
+}
+
+
+#[derive(Debug)]
 struct Soup {
     expressions: Vec<Term>,
     reaction_rules: Vec<Term>,
     discard: bool,
+    reduction_limit: usize,
+    filter: Filter,
 }
 
 struct ReactionResult {
@@ -19,10 +37,14 @@ struct ReactionResult {
 }
 
 
-// #[derive(Parser)]
+#[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Cli {
+
+    #[arg(short, long)]
     reduction_cutoff: Option<u32>,
+    
+    #[arg(short, long)]
     sample_frequency: Option<u32>,
     
 }
@@ -37,6 +59,8 @@ impl Soup {
                 parse("\\x.\\y.y", Classic).unwrap(),
             ],
             discard: true,
+            reduction_limit: 100000,
+            filter: Filter::new(),
         }
     }
 
@@ -64,7 +88,7 @@ impl Soup {
 
         // Collide expressions
         for rule in &self.reaction_rules {
-            let result = collide(rule.clone(), left.clone(), right.clone());
+            let result = self.collide(rule.clone(), left.clone(), right.clone());
             if let Some((value, n)) = result {
                 sizes.push(value.max_depth());
                 reductions.push(n);
@@ -112,18 +136,18 @@ impl Soup {
     fn remove_isomorphic_to(&mut self, copy: Term) -> bool {
         false
     }
-}
 
-fn collide(rule: Term, left: Term, right: Term) -> Option<(Term, usize)> {
-    let mut expr = app!(rule, left, right);
-    let limit = 100000;
-    let n = expr.reduce(HNO, limit);
-    if n == limit {
-        None
-    } else {
-        Some((expr, n))
+    fn collide(&self, rule: Term, left: Term, right: Term) -> Option<(Term, usize)> {
+        let mut expr = app!(rule, left, right);
+        let n = expr.reduce(HNO, self.reduction_limit);
+        if n == self.reduction_limit {
+            None
+        } else {
+            Some((expr, n))
+        }
     }
 }
+
 
 fn lambdac_example() {
     let mut expr = app!(pred(), 3.into_church());
@@ -135,9 +159,8 @@ fn lambdac_example() {
     }
 }
 
-fn main() {
+fn read_inputs_into_soup() -> Soup {
     let mut expression_strings = Vec::<String>::new();
-
     let stdin = io::stdin();
     let reader = BufReader::new(stdin.lock());
 
@@ -154,7 +177,13 @@ fn main() {
         .collect::<Vec<Term>>();
     let mut soup = Soup::new();
     soup.perturb(&mut expressions);
+    soup
+}
 
+fn main() {
+    let cli = Cli::parse();
+
+    let mut soup = read_inputs_into_soup();
     soup.simulate_for(100000);
     println! {"Terminal soup state:\n{:?}", soup}
 }
