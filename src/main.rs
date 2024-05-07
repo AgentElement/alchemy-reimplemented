@@ -4,17 +4,43 @@ use lambda_calculus::*;
 use rand::{thread_rng, Rng};
 use std::io::{self, BufRead, BufReader};
 
+enum Filter {
+    Identity,
+    Unbound,
+}
+
 #[derive(Debug)]
-struct Filter {
+struct FilterSet {
     identity: bool,
     unbound: bool,
 }
 
-impl Filter {
+impl FilterSet {
     fn new() -> Self {
-        Filter {
+        FilterSet {
             identity: false,
             unbound: false
+        }
+    }
+
+    fn set(&mut self, f: Filter) {
+        match f {
+            Filter::Identity => self.identity = true,
+            Filter::Unbound => self.unbound = true,
+        };
+    }
+    
+    fn unset(&mut self, f: Filter) {
+        match f {
+            Filter::Identity => self.identity = false,
+            Filter::Unbound => self.unbound = false,
+        };
+    }
+
+    fn object(&mut self, f: Filter) -> Term {
+        match f {
+            Filter::Identity => parse("\\x.x", Classic).unwrap(),
+            Filter::Unbound => parse("\\x.y", Classic).unwrap(),
         }
     }
 }
@@ -26,13 +52,22 @@ struct Soup {
     reaction_rules: Vec<Term>,
     discard: bool,
     reduction_limit: usize,
-    filter: Filter,
+    filter: FilterSet,
 }
 
+/// The result of composing a vector `v` of 2-ary lambda expressions with 
+/// the expressions A and B.
 struct ReactionResult {
+    /// Size of each product
     pub sizes: Vec<u32>,
+
+    /// Reduction steps
     pub reductions: Vec<usize>,
+
+    /// Size of A
     pub left_size: u32,
+
+    /// Size of B
     pub right_size: u32,
 }
 
@@ -42,7 +77,7 @@ struct ReactionResult {
 struct Cli {
 
     #[arg(short, long)]
-    reduction_cutoff: Option<u32>,
+    reduction_cutoff: Option<usize>,
     
     #[arg(short, long)]
     sample_frequency: Option<u32>,
@@ -60,9 +95,18 @@ impl Soup {
             ],
             discard: true,
             reduction_limit: 100000,
-            filter: Filter::new(),
+            filter: FilterSet::new(),
         }
     }
+
+    fn set_limit(&mut self, limit: usize) {
+        self.reduction_limit = limit;
+    }
+
+    fn add_filter(&mut self, filter: Filter) {
+        self.filter.set(filter);
+    }
+
 
     fn perturb(&mut self, expressions: &mut Vec<Term>) {
         self.expressions.append(expressions);
@@ -120,6 +164,7 @@ impl Soup {
 
     fn simulate_for(&mut self, n: usize) {
         for i in 0..n {
+            // print!("reaction {:?}", i);
             println!(
                 "reaction {:?} {}",
                 i,
@@ -184,6 +229,11 @@ fn main() {
     let cli = Cli::parse();
 
     let mut soup = read_inputs_into_soup();
+
+    if let Some(cutoff) = cli.reduction_cutoff {
+        soup.set_limit(cutoff);
+    }
+
     soup.simulate_for(100000);
     println! {"Terminal soup state:\n{:?}", soup}
 }
