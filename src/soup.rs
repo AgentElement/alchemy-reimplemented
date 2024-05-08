@@ -1,11 +1,13 @@
 use lambda_calculus::{app, Term};
 use rand::{thread_rng, Rng};
 
-enum Filter {
+// The condition for filter
+pub enum Filter {
     Identity,
     Unbound,
 }
 
+#[doc(hidden)]
 #[derive(Debug)]
 struct FilterSet {
     identity: bool,
@@ -43,6 +45,9 @@ impl FilterSet {
 }
 
 
+/// The principal AlChemy object. The `Soup` struct contains a set of 
+/// lambda expressions, and rules for composing and filtering them. A soup
+/// can then be reduced to form 
 #[derive(Debug)]
 pub struct Soup {
     expressions: Vec<Term>,
@@ -83,17 +88,33 @@ impl Soup {
         }
     }
 
+    /// Set the reduction limit of the soup
     pub fn set_limit(&mut self, limit: usize) {
         self.reduction_limit = limit;
     }
 
+    /// Add a filter to the soup. If a filter is active, all expressions
+    /// satisfying the conditions of the filter are removed from the soup.
     pub fn add_filter(&mut self, filter: Filter) {
         self.filter.set(filter);
     }
 
-
+    /// Introduce all expressions in `expressions` into the soup, without 
+    /// reduction.
     pub fn perturb(&mut self, expressions: &mut Vec<Term>) {
         self.expressions.append(expressions);
+    }
+
+    /// Return the result of ((`rule` `left`) `right`), up to a limit of 
+    /// `self.reduction_limit`
+    fn collide(&self, rule: Term, left: Term, right: Term) -> Option<(Term, usize)> {
+        let mut expr = app!(rule, left, right);
+        let n = expr.reduce(lambda_calculus::HNO, self.reduction_limit);
+        if n == self.reduction_limit {
+            None
+        } else {
+            Some((expr, n))
+        }
     }
 
     fn react(&mut self) -> Option<ReactionResult> {
@@ -146,6 +167,7 @@ impl Soup {
         })
     }
 
+    /// Simulate the soup for `n` collisions.
     pub fn simulate_for(&mut self, n: usize) {
         for i in 0..n {
             // print!("reaction {:?}", i);
@@ -166,15 +188,6 @@ impl Soup {
         false
     }
 
-    fn collide(&self, rule: Term, left: Term, right: Term) -> Option<(Term, usize)> {
-        let mut expr = app!(rule, left, right);
-        let n = expr.reduce(lambda_calculus::HNO, self.reduction_limit);
-        if n == self.reduction_limit {
-            None
-        } else {
-            Some((expr, n))
-        }
-    }
 }
 
 
