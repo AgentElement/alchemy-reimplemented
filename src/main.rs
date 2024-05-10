@@ -1,5 +1,4 @@
 use clap::Parser;
-use lambda_calculus::data::num::church::pred;
 use lambda_calculus::*;
 use std::io::{self, BufRead, BufReader};
 
@@ -16,16 +15,6 @@ struct Cli {
     #[arg(short, long)]
     sample_frequency: Option<u32>,
     
-}
-
-fn lambdac_example() {
-    let mut expr = app!(pred(), 3.into_church());
-    println!("{} order β-reduction steps for PRED 1 are:", NOR);
-
-    println!("{}", expr);
-    while expr.reduce(HNO, 1) != 0 {
-        println!("{}", expr);
-    }
 }
 
 fn read_inputs_into_soup() -> soup::Soup {
