@@ -9,3 +9,5 @@ edition = "2021"
 clap = { version = "4.5.4", features = ["derive"] }
 lambda_calculus = { git = "https://github.com/AgentElement/lambda_calculus" }
 rand = "0.8"
+serde = { version = "1.0.202", features = ["derive"] }
+serde_json = "1.0.117"
