@@ -1,26 +1,29 @@
-use lambda_calculus::Term;
+use serde::{Deserialize, Serialize};
 
 /// `Config` stores the global configuration of the program.
-struct Config {
-    rules: Vec<Term>,
-    discard_copy_actions: bool,
-    discard_identity: bool,
-    discard_free_variable_expressions: bool,
-    reduction_cutoff: u32,
-    run_limit: u32,
-    polling_interval: u32,
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Config {
+    pub rules: Vec<String>,
+    pub discard_copy_actions: bool,
+    pub discard_identity: bool,
+    pub discard_free_variable_expressions: bool,
+    pub reduction_cutoff: usize,
+    pub run_limit: usize,
+    pub polling_interval: u32,
 }
 
 impl Config {
-    fn from_config_file(s: &str) -> Self {
+    pub fn from_config_str(s: &str) -> Config {
+        serde_json::from_str(s).unwrap()
     }
 
-    fn new() -> Self {
+    /// Produce a new `Config` with default 
+    pub fn new() -> Self {
         Config {
             rules: vec![
-                lambda_calculus::parse("\\x.\\y.x y", lambda_calculus::Classic).unwrap(),
-                lambda_calculus::parse("\\x.\\y.x", lambda_calculus::Classic).unwrap(),
-                lambda_calculus::parse("\\x.\\y.y", lambda_calculus::Classic).unwrap(),
+                String::from("\\x.\\y.x y"),
+                String::from("\\x.\\y.x"),
+                String::from("\\x.\\y.y"),
             ],
 
             discard_copy_actions: true,

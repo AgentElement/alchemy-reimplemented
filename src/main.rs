@@ -1,20 +1,22 @@
 use clap::Parser;
 use lambda_calculus::*;
+use std::fs::read_to_string;
 use std::io::{self, BufRead, BufReader};
 
+mod config;
 mod soup;
-
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Cli {
-
     #[arg(short, long)]
     reduction_cutoff: Option<usize>,
-    
+
     #[arg(short, long)]
     sample_frequency: Option<u32>,
-    
+
+    #[arg(short, long)]
+    config_file: Option<String>,
 }
 
 fn read_inputs_into_soup() -> soup::Soup {
@@ -41,12 +43,21 @@ fn read_inputs_into_soup() -> soup::Soup {
 fn main() {
     let cli = Cli::parse();
 
+    let config = if let Some(filename) = cli.config_file {
+        let contents = read_to_string(filename).unwrap();
+        config::Config::from_config_str(&contents)
+    } else {
+        config::Config::new()
+    };
+
     let mut soup = read_inputs_into_soup();
 
-    if let Some(cutoff) = cli.reduction_cutoff {
-        soup.set_limit(cutoff);
-    }
+    soup.set_limit(if let Some(cutoff) = cli.reduction_cutoff {
+        cutoff
+    } else {
+        config.reduction_cutoff
+    });
 
-    soup.simulate_for(100000);
+    soup.simulate_for(config.run_limit);
     println! {"Terminal soup state:\n{:?}", soup}
 }
