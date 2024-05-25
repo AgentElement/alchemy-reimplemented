@@ -5,6 +5,7 @@ use std::io::{self, BufRead, BufReader};
 
 mod config;
 mod soup;
+mod analysis;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -19,7 +20,7 @@ struct Cli {
     config_file: Option<String>,
 }
 
-fn read_inputs_into_soup() -> soup::Soup {
+fn read_inputs_into_soup(cfg: &config::Config) -> soup::Soup {
     let mut expression_strings = Vec::<String>::new();
     let stdin = io::stdin();
     let reader = BufReader::new(stdin.lock());
@@ -35,7 +36,7 @@ fn read_inputs_into_soup() -> soup::Soup {
         .iter()
         .map(|s| parse(s, Classic).unwrap())
         .collect::<Vec<Term>>();
-    let mut soup = soup::Soup::new();
+    let mut soup = soup::Soup::from_config(cfg);
     soup.perturb(&mut expressions);
     soup
 }
@@ -50,7 +51,7 @@ fn main() {
         config::Config::new()
     };
 
-    let mut soup = read_inputs_into_soup();
+    let mut soup = read_inputs_into_soup(&config);
 
     soup.set_limit(if let Some(cutoff) = cli.reduction_cutoff {
         cutoff

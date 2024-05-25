@@ -7,6 +7,8 @@ pub struct Config {
     pub discard_copy_actions: bool,
     pub discard_identity: bool,
     pub discard_free_variable_expressions: bool,
+    pub discard_parents: bool,
+    pub maintain_constant_population_size: bool,
     pub reduction_cutoff: usize,
     pub run_limit: usize,
     pub polling_interval: u32,
@@ -22,13 +24,13 @@ impl Config {
         Config {
             rules: vec![
                 String::from("\\x.\\y.x y"),
-                String::from("\\x.\\y.x"),
-                String::from("\\x.\\y.y"),
             ],
 
             discard_copy_actions: true,
             discard_identity: true,
             discard_free_variable_expressions: true,
+            maintain_constant_population_size: true,
+            discard_parents: false,
             reduction_cutoff: 100000,
             run_limit: 100000,
             polling_interval: 100,
