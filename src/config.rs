@@ -31,7 +31,7 @@ impl Config {
             discard_free_variable_expressions: true,
             maintain_constant_population_size: true,
             discard_parents: false,
-            reduction_cutoff: 100000,
+            reduction_cutoff: 500,
             run_limit: 100000,
             polling_interval: 100,
         }

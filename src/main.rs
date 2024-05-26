@@ -32,12 +32,11 @@ fn read_inputs_into_soup(cfg: &config::Config) -> soup::Soup {
         }
     }
 
-    let mut expressions = expression_strings
+    let expressions = expression_strings
         .iter()
-        .map(|s| parse(s, Classic).unwrap())
-        .collect::<Vec<Term>>();
+        .map(|s| parse(s, Classic).unwrap());
     let mut soup = soup::Soup::from_config(cfg);
-    soup.perturb(&mut expressions);
+    soup.perturb(expressions);
     soup
 }
 

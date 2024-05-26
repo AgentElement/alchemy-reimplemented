@@ -1,6 +1,6 @@
-use lambda_calculus::{app, abs, Var, Term};
-use rand::{thread_rng, Rng};
 use crate::config;
+use lambda_calculus::{abs, app, Term, Var};
+use rand::{thread_rng, Rng};
 
 /// The principal AlChemy object. The `Soup` struct contains a set of
 /// lambda expressions, and rules for composing and filtering them.
@@ -20,7 +20,7 @@ pub struct Soup {
 /// Stores the size and number of reductions for a collision
 struct CollisionResult {
     pub size: u32,
-    pub reductions: usize, 
+    pub reductions: usize,
 }
 
 /// The result of composing a vector `v` of 2-ary lambda expressions with
@@ -52,18 +52,19 @@ impl Soup {
             discard_free_variable_expressions: true,
             discard_parents: false,
         }
-        
     }
 
     /// Generate an empty soup from a given `config` object.
     pub fn from_config(cfg: &config::Config) -> Self {
         Soup {
             expressions: Vec::new(),
-            reaction_rules: cfg.rules.iter().map(|r| {
-                lambda_calculus::parse(r, lambda_calculus::Classic).unwrap()
-            }).collect(),
+            reaction_rules: cfg
+                .rules
+                .iter()
+                .map(|r| lambda_calculus::parse(r, lambda_calculus::Classic).unwrap())
+                .collect(),
             reduction_limit: cfg.reduction_cutoff,
-            
+
             maintain_constant_population_size: cfg.maintain_constant_population_size,
             discard_copy_actions: cfg.discard_copy_actions,
             discard_parents: cfg.discard_parents,
@@ -72,55 +73,48 @@ impl Soup {
         }
     }
 
-
-
     /// Set the reduction limit of the soup
     pub fn set_limit(&mut self, limit: usize) {
         self.reduction_limit = limit;
     }
 
-    /// Add a filter to the soup. If a filter is active, all expressions
-    /// satisfying the conditions of the filter are removed from the soup.
-    // pub fn add_filter(&mut self, filter: Filter) {
-    //     self.filter.set(filter);
-    // }
-
     /// Introduce all expressions in `expressions` into the soup, without
     /// reduction.
-    pub fn perturb(&mut self, expressions: &mut Vec<Term>) {
-        self.expressions.append(expressions);
+    pub fn perturb(&mut self, expressions: impl IntoIterator<Item=Term>) {
+        self.expressions
+            .extend(expressions.into_iter().filter(|e| !e.has_free_variables()));
     }
 
     /// Return the result of ((`rule` `left`) `right`), up to a limit of
-    /// `self.reduction_limit`
-    fn collide(&self, rule: Term, left: Term, right: Term) -> Option<(Term, usize)> {
+    /// `self.reduction_limit`.
+    // TODO: return a proper error type instead of `String`.
+    fn collide(&self, rule: Term, left: Term, right: Term) -> Result<(Term, usize), String> {
         let mut expr = app!(rule, left.clone(), right.clone());
         let n = expr.reduce(lambda_calculus::HNO, self.reduction_limit);
         if n == self.reduction_limit {
-            return None;
-        } 
+            return Err(String::from("collision exceeds reduction limit"));
+        }
 
         let identity = abs(Var(1));
         if expr.is_isomorphic_to(&identity) && self.discard_identity {
-            return None;
+            return Err(String::from("collision result is identity function"));
         }
 
         let is_copy_action = expr.is_isomorphic_to(&left) || expr.is_isomorphic_to(&right);
         if is_copy_action && self.discard_copy_actions {
-            return None;
+            return Err(String::from("collision result is isomorphic to parent"));
         }
 
         if expr.has_free_variables() && self.discard_free_variable_expressions {
-            return None;
+            return Err(String::from("collision result has free variables"));
         }
 
-        Some((expr, n))
-
+        Ok((expr, n))
     }
 
     // TODO: This is a huge monolith, decompose into something neater
     /// Produce one atomic reaction on the soup.
-    fn react(&mut self) -> Option<ReactionResult> {
+    fn react(&mut self) -> Result<ReactionResult, String> {
         let mut rng = thread_rng();
         let n_expr = self.expressions.len();
 
@@ -140,15 +134,17 @@ impl Soup {
         // Collide expressions
         for rule in &self.reaction_rules {
             let result = self.collide(rule.clone(), left.clone(), right.clone());
-            if let Some((value, n)) = result {
-                let datum = CollisionResult {
-                    reductions: n,
-                    size: value.max_depth()
-                };
-                collision_results.push(datum);
-                buf.push(value);
-            } else {
-                return None;
+            match result {
+                Ok((value, n)) => {
+                    let datum = CollisionResult {
+                        reductions: n,
+                        size: value.max_depth(),
+                    };
+                    collision_results.push(datum);
+                    buf.push(value);
+                }
+
+                Err(s) => return Err(s),
             }
         }
 
@@ -170,7 +166,7 @@ impl Soup {
         }
 
         // Return collision log
-        Some(ReactionResult {
+        Ok(ReactionResult {
             collision_results,
             left_size,
             right_size,
@@ -184,11 +180,16 @@ impl Soup {
             println!(
                 "reaction {:?} {}",
                 i,
-                if let Some(result) = self.react() {
-                    format!("successful with {} reductions between expressions of sizes {} and {}, and produces an expression of size {}",
-                            result.left_size, result.right_size, result.collision_results[0].reductions, result.collision_results[0].size)
-                } else {
-                    "failed".to_string()
+                match self.react() {
+                    Ok(result) => format!(
+                        "successful with {} reductions between expressions of
+                        sizes {} and {}, and produces an expression of size {}",
+                        result.left_size,
+                        result.right_size,
+                        result.collision_results[0].reductions,
+                        result.collision_results[0].size
+                    ),
+                    Err(message) => format!("failed because {}", message),
                 }
             )
         }
