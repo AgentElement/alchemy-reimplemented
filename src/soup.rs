@@ -133,19 +133,13 @@ impl Soup {
 
         // Collide expressions
         for rule in &self.reaction_rules {
-            let result = self.collide(rule.clone(), left.clone(), right.clone());
-            match result {
-                Ok((value, n)) => {
-                    let datum = CollisionResult {
-                        reductions: n,
-                        size: value.max_depth(),
-                    };
-                    collision_results.push(datum);
-                    buf.push(value);
-                }
-
-                Err(s) => return Err(s),
-            }
+            let (value, n) = self.collide(rule.clone(), left.clone(), right.clone())?;
+            let datum = CollisionResult {
+                reductions: n,
+                size: value.max_depth(),
+            };
+            collision_results.push(datum);
+            buf.push(value);
         }
 
         // Add collision results to soup
@@ -176,7 +170,6 @@ impl Soup {
     /// Simulate the soup for `n` collisions.
     pub fn simulate_for(&mut self, n: usize) {
         for i in 0..n {
-            // print!("reaction {:?}", i);
             println!(
                 "reaction {:?} {}",
                 i,
