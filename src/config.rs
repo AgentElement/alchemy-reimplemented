@@ -19,6 +19,10 @@ impl Config {
         serde_json::from_str(s).unwrap()
     }
 
+    pub fn to_config_str(&self) -> String {
+        serde_json::to_string(self).unwrap()
+    }
+
     /// Produce a new `Config` with default 
     pub fn new() -> Self {
         Config {
@@ -36,6 +40,7 @@ impl Config {
             polling_interval: 100,
         }
     }
+
 }
 
 
