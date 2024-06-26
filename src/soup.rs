@@ -39,19 +39,7 @@ impl Soup {
     /// Generate an empty soup with the following configuration options:
     ///
     pub fn new() -> Self {
-        Soup {
-            expressions: Vec::new(),
-            reaction_rules: vec![
-                abs(abs(app(Var(1), Var(2)))), // \x. \y. x y
-            ],
-            reduction_limit: 100000,
-
-            maintain_constant_population_size: true,
-            discard_copy_actions: true,
-            discard_identity: true,
-            discard_free_variable_expressions: true,
-            discard_parents: false,
-        }
+        Soup::from_config(&config::Config::new())
     }
 
     /// Generate an empty soup from a given `config` object.
