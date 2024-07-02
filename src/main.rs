@@ -11,7 +11,7 @@ mod soup;
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Cli {
-    #[arg(short, long)]
+    #[arg(short='f', long)]
     reduction_cutoff: Option<usize>,
 
     #[arg(short, long)]
@@ -22,6 +22,9 @@ struct Cli {
 
     #[arg(short, long)]
     make_default_config: bool,
+    
+    #[arg(short, long)]
+    run_limit: Option<usize>,
 }
 
 fn read_inputs_into_soup(cfg: &config::Config) -> soup::Soup {
@@ -69,7 +72,17 @@ fn main() -> std::io::Result<()> {
         config.reduction_cutoff
     });
 
-    soup.simulate_for(config.run_limit);
-    println! {"Terminal soup state:\n{:?}", soup};
+
+    let limit = if let Some(run_limit) = cli.run_limit {
+        run_limit
+    } else {
+        config.run_limit
+    };
+
+    let log = config.print_reaction_results;
+
+    soup.simulate_for(limit, log);
+
+    soup.print(config.debrujin_output);
     Ok(())
 }

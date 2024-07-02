@@ -68,7 +68,7 @@ impl Soup {
 
     /// Introduce all expressions in `expressions` into the soup, without
     /// reduction.
-    pub fn perturb(&mut self, expressions: impl IntoIterator<Item=Term>) {
+    pub fn perturb(&mut self, expressions: impl IntoIterator<Item = Term>) {
         self.expressions
             .extend(expressions.into_iter().filter(|e| !e.has_free_variables()));
     }
@@ -156,23 +156,30 @@ impl Soup {
     }
 
     /// Simulate the soup for `n` collisions.
-    pub fn simulate_for(&mut self, n: usize) {
+    pub fn simulate_for(&mut self, n: usize, log: bool) {
         for i in 0..n {
-            println!(
-                "reaction {:?} {}",
-                i,
-                match self.react() {
-                    Ok(result) => format!(
-                        "successful with {} reductions between expressions of
+            let reaction = self.react();
+            let reaction_log_message = match reaction {
+                Ok(result) => format!(
+                    "successful with {} reductions between expressions of
                         sizes {} and {}, and produces an expression of size {}",
-                        result.left_size,
-                        result.right_size,
-                        result.collision_results[0].reductions,
-                        result.collision_results[0].size
-                    ),
-                    Err(message) => format!("failed because {}", message),
-                }
-            )
+                    result.left_size,
+                    result.right_size,
+                    result.collision_results[0].reductions,
+                    result.collision_results[0].size
+                ),
+                Err(message) => format!("failed because {}", message),
+            };
+
+            if log {
+                println!("reaction {:?} {}", i, reaction_log_message)
+            }
+        }
+    }
+
+    pub fn print(&self, debrujin_output: bool) {
+        for expression in &self.expressions {
+            println!("{}", expression)
         }
     }
 }

@@ -12,6 +12,8 @@ pub struct Config {
     pub reduction_cutoff: usize,
     pub run_limit: usize,
     pub polling_interval: u32,
+    pub print_reaction_results: bool,
+    pub debrujin_output: bool,
 }
 
 impl Config {
@@ -23,12 +25,10 @@ impl Config {
         serde_json::to_string(self).unwrap()
     }
 
-    /// Produce a new `Config` with default 
+    /// Produce a new `Config` with default
     pub fn new() -> Self {
         Config {
-            rules: vec![
-                String::from("\\x.\\y.x y"),
-            ],
+            rules: vec![String::from("\\x.\\y.x y")],
 
             discard_copy_actions: true,
             discard_identity: true,
@@ -38,9 +38,8 @@ impl Config {
             reduction_cutoff: 500,
             run_limit: 100000,
             polling_interval: 100,
+            print_reaction_results: false,
+            debrujin_output: false,
         }
     }
-
 }
-
-
