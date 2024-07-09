@@ -32,6 +32,9 @@ struct Cli {
     
     #[arg(short, long)]
     run_limit: Option<usize>,
+
+    #[arg(long)]
+    log: bool,
 }
 
 /// Read lambda expressions from stdin and create a new soup from the global configuration
@@ -87,7 +90,7 @@ fn main() -> std::io::Result<()> {
         config.run_limit
     };
 
-    let log = config.print_reaction_results;
+    let log = cli.log || config.print_reaction_results;
 
     soup.simulate_for(limit, log);
 
