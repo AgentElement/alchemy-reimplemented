@@ -100,7 +100,6 @@ impl Soup {
         Ok((expr, n))
     }
 
-    // TODO: This is a huge monolith, decompose into something neater
     /// Produce one atomic reaction on the soup.
     fn react(&mut self) -> Result<ReactionResult, String> {
         let mut rng = thread_rng();
@@ -155,7 +154,8 @@ impl Soup {
         })
     }
 
-    /// Simulate the soup for `n` collisions.
+    /// Simulate the soup for `n` collisions. If `log` is set, then print
+    /// out a log message for each reaction 
     pub fn simulate_for(&mut self, n: usize, log: bool) {
         for i in 0..n {
             let reaction = self.react();
@@ -177,6 +177,9 @@ impl Soup {
         }
     }
 
+    /// Print out all expressions within the soup. Defaults to Church notation. 
+    /// If `debruijn_output` is set, then expressions are printed in DeBruijn
+    /// notation.
     pub fn print(&self, debrujin_output: bool) {
         for expression in &self.expressions {
             println!("{}", expression)
