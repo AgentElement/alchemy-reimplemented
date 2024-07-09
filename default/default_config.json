@@ -12,5 +12,5 @@
   "polling_interval": 0,
   "print_reaction_results": false,
   "debrujin_output": false,
-  "seed": 1000
+  "seed": null
 }
