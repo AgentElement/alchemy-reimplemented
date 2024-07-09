@@ -3,9 +3,16 @@ use lambda_calculus::*;
 use std::fs::{read_to_string, File};
 use std::io::{self, BufRead, BufReader, Write};
 
+/// Simulation analysis
 mod analysis;
+
+/// Global configuration
 mod config;
+
+/// Random expression generators
 mod generators;
+
+/// Main AlChemy simulation module
 mod soup;
 
 #[derive(Parser, Debug)]
@@ -27,6 +34,7 @@ struct Cli {
     run_limit: Option<usize>,
 }
 
+/// Read lambda expressions from stdin and create a new soup from the global configuration
 fn read_inputs_into_soup(cfg: &config::Config) -> soup::Soup {
     let mut expression_strings = Vec::<String>::new();
     let stdin = io::stdin();
