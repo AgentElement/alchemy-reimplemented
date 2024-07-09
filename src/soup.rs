@@ -105,6 +105,10 @@ impl Soup {
         let mut rng = thread_rng();
         let n_expr = self.expressions.len();
 
+        if n_expr < 2 {
+            return Err(String::from("Not enough expressions for further reactions"));
+        }
+
         // Remove two distinct expressions randomly from the soup
         let i = rng.gen_range(0..n_expr);
         let left = &self.expressions.swap_remove(i);
@@ -119,14 +123,28 @@ impl Soup {
         let mut collision_results = Vec::with_capacity(self.reaction_rules.len());
 
         // Collide expressions
+        //
+        let mut n_successful_reactions = 0;
         for rule in &self.reaction_rules {
-            let (value, n) = self.collide(rule.clone(), left.clone(), right.clone())?;
-            let datum = CollisionResult {
-                reductions: n,
-                size: value.max_depth(),
-            };
-            collision_results.push(datum);
-            buf.push(value);
+            let result = self.collide(rule.clone(), left.clone(), right.clone());
+            match result {
+                Ok((value, n)) => {
+                    let datum = CollisionResult {
+                        reductions: n,
+                        size: value.max_depth(),
+                    };
+                    collision_results.push(datum);
+                    buf.push(value);
+                    n_successful_reactions += 1;
+                }
+                Err(s) => {
+                    if !self.discard_parents {
+                        self.expressions.push(left.clone());
+                        self.expressions.push(right.clone());
+                    }
+                    return Err(s);
+                }
+            }
         }
 
         // Add collision results to soup
@@ -140,7 +158,7 @@ impl Soup {
 
         // Remove additional expressions, if required.
         if self.maintain_constant_population_size {
-            for _ in 0..(self.reaction_rules.len()) {
+            for _ in 0..n_successful_reactions {
                 let k = rng.gen_range(0..self.expressions.len());
                 self.expressions.swap_remove(k);
             }
@@ -155,7 +173,7 @@ impl Soup {
     }
 
     /// Simulate the soup for `n` collisions. If `log` is set, then print
-    /// out a log message for each reaction 
+    /// out a log message for each reaction
     pub fn simulate_for(&mut self, n: usize, log: bool) {
         for i in 0..n {
             let reaction = self.react();
@@ -177,7 +195,7 @@ impl Soup {
         }
     }
 
-    /// Print out all expressions within the soup. Defaults to Church notation. 
+    /// Print out all expressions within the soup. Defaults to Church notation.
     /// If `debruijn_output` is set, then expressions are printed in DeBruijn
     /// notation.
     pub fn print(&self, debrujin_output: bool) {
