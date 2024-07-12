@@ -17,6 +17,12 @@ pub struct Soup {
     discard_parents: bool,
 }
 
+pub struct Tape {
+    soup: Box<Soup>,
+    history: Vec<Vec<Term>>,
+    polling_interval: u32 
+}
+
 /// Stores the size and number of reductions for a collision
 struct CollisionResult {
     pub size: u32,
@@ -202,5 +208,9 @@ impl Soup {
         for expression in &self.expressions {
             println!("{}", expression)
         }
+    }
+
+    pub fn expressions(&self) -> impl Iterator<Item=&Term> {
+        self.expressions.iter()
     }
 }
