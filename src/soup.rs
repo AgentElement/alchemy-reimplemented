@@ -19,7 +19,7 @@ pub struct Soup {
 
 pub struct Tape {
     soup: Soup,
-    history: Vec<Vec<Term>>,
+    history: Vec<Soup>,
     polling_interval: usize,
 }
 
@@ -207,13 +207,13 @@ impl Soup {
 
     /// Simulate the soup for `n` collisions, recording the state of the soup every
     /// `polling_interval` reactions. If `log` is set, then print out a log message for each
-    /// reaction.
+    /// reaction
     pub fn simulate_and_record(&mut self, n: usize, polling_interval: usize, log: bool) -> Tape {
-        let mut history: Vec<Vec<Term>> = Vec::new();
+        let mut history: Vec<Soup> = Vec::new();
         for i in 0..n {
             let reaction = self.react();
             if (i % polling_interval) == 0 {
-                history.push(self.expressions.clone())
+                history.push(self.clone())
             }
             if log {
                 let message = Soup::log_message_from_reaction(&reaction);
@@ -239,5 +239,19 @@ impl Soup {
 
     pub fn expressions(&self) -> impl Iterator<Item = &Term> {
         self.expressions.iter()
+    }
+}
+
+impl Tape {
+    pub fn final_state(&self) -> &Soup {
+        &self.soup
+    }
+
+    pub fn history(&self) -> impl Iterator<Item = &Soup> {
+        self.history.iter()
+    }
+
+    pub fn polling_interval(&self) -> usize {
+        self.polling_interval
     }
 }

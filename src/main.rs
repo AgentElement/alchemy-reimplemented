@@ -104,12 +104,14 @@ fn main() -> std::io::Result<()> {
     let log = cli.log || config.print_reaction_results;
 
     if let Some(polling_interval) = cli.polling_interval {
-        soup.simulate_and_record(limit, polling_interval, log);
+        let tape = soup.simulate_and_record(limit, polling_interval, log);
+        for soup in tape.history() {
+            println!("{}", soup.population_entropy());
+        }
     } else {
-        soup.simulate_for(limit, log)
+        soup.simulate_for(limit, log);
+        soup.print(config.debrujin_output);
     }
-
-    soup.print(config.debrujin_output);
 
     Ok(())
 }
