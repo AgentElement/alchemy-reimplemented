@@ -4,7 +4,7 @@ use rand::{thread_rng, Rng};
 
 /// The principal AlChemy object. The `Soup` struct contains a set of
 /// lambda expressions, and rules for composing and filtering them.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Soup {
     expressions: Vec<Term>,
     reaction_rules: Vec<Term>,
@@ -18,9 +18,9 @@ pub struct Soup {
 }
 
 pub struct Tape {
-    soup: Box<Soup>,
+    soup: Soup,
     history: Vec<Vec<Term>>,
-    polling_interval: u32 
+    polling_interval: usize,
 }
 
 /// Stores the size and number of reductions for a collision
@@ -178,26 +178,53 @@ impl Soup {
         })
     }
 
+    fn log_message_from_reaction(reaction: &Result<ReactionResult, String>) -> String {
+        match reaction {
+            Ok(result) => format!(
+                "successful with {} reductions between expressions of
+                        sizes {} and {}, and produces an expression of size {}",
+                result.left_size,
+                result.right_size,
+                result.collision_results[0].reductions,
+                result.collision_results[0].size
+            ),
+            Err(message) => format!("failed because {}", message),
+        }
+    }
+
     /// Simulate the soup for `n` collisions. If `log` is set, then print
     /// out a log message for each reaction
     pub fn simulate_for(&mut self, n: usize, log: bool) {
         for i in 0..n {
             let reaction = self.react();
-            let reaction_log_message = match reaction {
-                Ok(result) => format!(
-                    "successful with {} reductions between expressions of
-                        sizes {} and {}, and produces an expression of size {}",
-                    result.left_size,
-                    result.right_size,
-                    result.collision_results[0].reductions,
-                    result.collision_results[0].size
-                ),
-                Err(message) => format!("failed because {}", message),
-            };
 
             if log {
-                println!("reaction {:?} {}", i, reaction_log_message)
+                let message = Soup::log_message_from_reaction(&reaction);
+                println!("reaction {:?} {}", i, message)
             }
+        }
+    }
+
+    /// Simulate the soup for `n` collisions, recording the state of the soup every
+    /// `polling_interval` reactions. If `log` is set, then print out a log message for each
+    /// reaction.
+    pub fn simulate_and_record(&mut self, n: usize, polling_interval: usize, log: bool) -> Tape {
+        let mut history: Vec<Vec<Term>> = Vec::new();
+        for i in 0..n {
+            let reaction = self.react();
+            if (i % polling_interval) == 0 {
+                history.push(self.expressions.clone())
+            }
+            if log {
+                let message = Soup::log_message_from_reaction(&reaction);
+                println!("reaction {:?} {}", i, message)
+            }
+        }
+
+        Tape {
+            soup: self.clone(),
+            history,
+            polling_interval,
         }
     }
 
@@ -210,7 +237,7 @@ impl Soup {
         }
     }
 
-    pub fn expressions(&self) -> impl Iterator<Item=&Term> {
+    pub fn expressions(&self) -> impl Iterator<Item = &Term> {
         self.expressions.iter()
     }
 }

@@ -103,7 +103,11 @@ fn main() -> std::io::Result<()> {
 
     let log = cli.log || config.print_reaction_results;
 
-    soup.simulate_for(limit, log);
+    if let Some(polling_interval) = cli.polling_interval {
+        soup.simulate_and_record(limit, polling_interval, log);
+    } else {
+        soup.simulate_for(limit, log)
+    }
 
     soup.print(config.debrujin_output);
 
