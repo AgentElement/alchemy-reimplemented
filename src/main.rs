@@ -22,11 +22,17 @@ struct Cli {
     reduction_cutoff: Option<usize>,
 
     #[arg(short, long)]
-    sample_frequency: Option<u32>,
+    polling_interval: Option<usize>,
 
+    /// Specify the configuration file
     #[arg(short, long)]
     config_file: Option<String>,
 
+    /// Dump out the current config
+    #[arg(long)]
+    dump_config: bool,
+
+    /// Make a default config file in the current directory
     #[arg(short, long)]
     make_default_config: bool,
     
@@ -75,6 +81,11 @@ fn main() -> std::io::Result<()> {
         config::Config::new()
     };
 
+    if cli.dump_config {
+        println!("{}", config.to_config_str());
+        return Ok(());
+    }
+
     let mut soup = read_inputs_into_soup(&config);
 
     soup.set_limit(if let Some(cutoff) = cli.reduction_cutoff {
@@ -95,5 +106,6 @@ fn main() -> std::io::Result<()> {
     soup.simulate_for(limit, log);
 
     soup.print(config.debrujin_output);
+
     Ok(())
 }
