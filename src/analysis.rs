@@ -29,6 +29,12 @@ impl Soup {
     fn find_functions_with_property(&self, property: &Property) {}
 
     pub fn population_entropy(&self) -> f32 {
-        0.0
+        let mut entropy = 0.0;
+        let n = self.len() as f32;
+        for (_, value) in self.expression_counts().iter() {
+            let pi = (*value as f32) / n;
+            entropy -= pi * pi.log10();
+        }
+        entropy
     }
 }
