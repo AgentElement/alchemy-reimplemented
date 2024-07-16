@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::soup::Soup;
+use crate::soup::Tape;
 
 use lambda_calculus::Term;
 
@@ -8,6 +9,7 @@ struct Property {
     n: usize,
     rhs: Vec<usize>,
 }
+
 
 impl Soup {
     // This is expensive, quadratic in the number of expressions. It can
@@ -25,4 +27,8 @@ impl Soup {
     }
 
     fn find_functions_with_property(&self, property: &Property) {}
+
+    pub fn population_entropy(&self) -> f32 {
+        0.0
+    }
 }
