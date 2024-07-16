@@ -18,27 +18,32 @@ mod soup;
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Cli {
+    /// Fail a reaction if it takes more than `reduction_cutoff` steps to reduce
     #[arg(short='f', long)]
     reduction_cutoff: Option<usize>,
 
+    /// When set, generate a tape that snapshots the state of the reactor every `polling_interval`
+    /// reactions
     #[arg(short, long)]
     polling_interval: Option<usize>,
 
-    /// Specify the configuration file
+    /// Explicit path to configuration file
     #[arg(short, long)]
     config_file: Option<String>,
 
-    /// Dump out the current config
+    /// Dump out the current config and exit
     #[arg(long)]
     dump_config: bool,
 
-    /// Make a default config file in the current directory
+    /// Make a default config file in the current directory and exit
     #[arg(short, long)]
     make_default_config: bool,
     
+    /// Number of reactions to run before printing out final soup
     #[arg(short, long)]
     run_limit: Option<usize>,
 
+    /// Log each reaction
     #[arg(long)]
     log: bool,
 }
