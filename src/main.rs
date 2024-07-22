@@ -19,7 +19,7 @@ mod soup;
 #[command(version, about, long_about = None)]
 struct Cli {
     /// Fail a reaction if it takes more than `reduction_cutoff` steps to reduce
-    #[arg(short='f', long)]
+    #[arg(short = 'f', long)]
     reduction_cutoff: Option<usize>,
 
     /// When set, generate a tape that snapshots the state of the reactor every `polling_interval`
@@ -38,7 +38,7 @@ struct Cli {
     /// Make a default config file in the current directory and exit
     #[arg(short, long)]
     make_default_config: bool,
-    
+
     /// Number of reactions to run before printing out final soup
     #[arg(short, long)]
     run_limit: Option<usize>,
@@ -98,7 +98,6 @@ fn main() -> std::io::Result<()> {
     } else {
         config.reduction_cutoff
     });
-
 
     let limit = if let Some(run_limit) = cli.run_limit {
         run_limit
