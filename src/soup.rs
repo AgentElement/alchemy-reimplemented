@@ -231,7 +231,7 @@ impl Soup {
     /// Print out all expressions within the soup. Defaults to Church notation.
     /// If `debruijn_output` is set, then expressions are printed in DeBruijn
     /// notation.
-    pub fn print(&self, debrujin_output: bool) {
+    pub fn print(&self) {
         for expression in &self.expressions {
             println!("{}", expression)
         }

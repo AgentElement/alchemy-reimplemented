@@ -115,7 +115,7 @@ fn main() -> std::io::Result<()> {
         }
     } else {
         soup.simulate_for(limit, log);
-        soup.print(config.debrujin_output);
+        soup.print();
     }
 
     Ok(())
