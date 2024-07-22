@@ -172,7 +172,7 @@ impl Soup {
         // Remove additional expressions, if required.
         if self.maintain_constant_population_size {
             for _ in 0..n_successful_reactions {
-                let k = rng.gen_range(0..self.expressions.len());
+                let k = self.rng.gen_range(0..self.expressions.len());
                 self.expressions.swap_remove(k);
             }
         }
