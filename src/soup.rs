@@ -240,6 +240,10 @@ impl Soup {
     pub fn expressions(&self) -> impl Iterator<Item = &Term> {
         self.expressions.iter()
     }
+
+    pub fn len(&self) -> usize {
+        self.expressions.len()
+    }
 }
 
 impl Tape {
