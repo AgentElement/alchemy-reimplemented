@@ -1,6 +1,7 @@
 use crate::config;
 use lambda_calculus::{abs, app, Term, Var};
-use rand::{thread_rng, Rng};
+use rand::{thread_rng, Rng, SeedableRng};
+use rand_chacha::ChaCha8Rng;
 
 /// The principal AlChemy object. The `Soup` struct contains a set of
 /// lambda expressions, and rules for composing and filtering them.
@@ -15,6 +16,9 @@ pub struct Soup {
     discard_identity: bool,
     discard_free_variable_expressions: bool,
     discard_parents: bool,
+
+    seed: [u8; 32],
+    rng: ChaCha8Rng,
 }
 
 pub struct Tape {
@@ -50,6 +54,8 @@ impl Soup {
 
     /// Generate an empty soup from a given `config` object.
     pub fn from_config(cfg: &config::Config) -> Self {
+        let seed = cfg.reactor_seed.unwrap_or(thread_rng().gen());
+        let rng = ChaCha8Rng::from_seed(seed);
         Soup {
             expressions: Vec::new(),
             reaction_rules: cfg
@@ -64,6 +70,8 @@ impl Soup {
             discard_parents: cfg.discard_parents,
             discard_identity: cfg.discard_identity,
             discard_free_variable_expressions: cfg.discard_free_variable_expressions,
+            seed,
+            rng,
         }
     }
 
@@ -108,7 +116,6 @@ impl Soup {
 
     /// Produce one atomic reaction on the soup.
     fn react(&mut self) -> Result<ReactionResult, String> {
-        let mut rng = thread_rng();
         let n_expr = self.expressions.len();
 
         if n_expr < 2 {
@@ -116,11 +123,11 @@ impl Soup {
         }
 
         // Remove two distinct expressions randomly from the soup
-        let i = rng.gen_range(0..n_expr);
+        let i = self.rng.gen_range(0..n_expr);
         let left = &self.expressions.swap_remove(i);
         let left_size = left.max_depth();
 
-        let j = rng.gen_range(0..n_expr - 1);
+        let j = self.rng.gen_range(0..n_expr - 1);
         let right = &self.expressions.swap_remove(j);
         let right_size = right.max_depth();
 

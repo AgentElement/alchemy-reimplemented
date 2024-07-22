@@ -35,9 +35,9 @@ pub struct Config {
     /// The number of reactions to run for this simulation. Default: `100000`
     pub run_limit: usize,
 
-    /// Print out the state of the soup every `polling_interval` reactions. When set to 0, never
-    /// poll. Default: `0`
-    pub polling_interval: u32, // TODO
+    /// Print out the state of the soup every `polling_interval` reactions. When set to `None`, never
+    /// poll. Default: `None`
+    pub polling_interval: Option<usize>, // TODO
 
     /// When set, print out all logs for each individual reaction. Default: `false`
     pub print_reaction_results: bool,
@@ -45,9 +45,13 @@ pub struct Config {
     /// When set, print out the soup in debruijn notation. Default: `false`
     pub debrujin_output: bool,
 
-    /// The seed for the random number generator. If set to `None`, then the simulation is
-    /// seedless. Default: `None`
-    pub seed: Option<u32>, // TODO
+    /// The seed for the lambda expression generator. If set to `None`, then a seed is chosen
+    /// randomly. Default: `None`
+    pub generator_seed: Option<u32>, // TODO
+
+    /// The seed for the reactor. If set to `None`, then a seed is chosen
+    /// randomly. Default: `None`
+    pub reactor_seed: Option<[u8; 32]>, // TODO
 }
 
 impl Config {
@@ -55,7 +59,6 @@ impl Config {
         serde_json::from_str(s).unwrap()
     }
 
-    ///
     pub fn to_config_str(&self) -> String {
         serde_json::to_string(self).unwrap()
     }
@@ -72,10 +75,11 @@ impl Config {
             discard_parents: false,
             reduction_cutoff: 500,
             run_limit: 100000,
-            polling_interval: 0,
+            polling_interval: None,
             print_reaction_results: false,
             debrujin_output: false,
-            seed: None,
+            generator_seed: None,
+            reactor_seed: None,
         }
     }
 }
