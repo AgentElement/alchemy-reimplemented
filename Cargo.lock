@@ -9,6 +9,7 @@ dependencies = [
  "clap",
  "lambda_calculus",
  "rand",
+ "rand_chacha",
  "serde",
  "serde_json",
 ]
