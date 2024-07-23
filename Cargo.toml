@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "4.5.4", features = ["derive"] }
-lambda_calculus = "3.3.0"
+lambda_calculus = {git = "https://github.com/ljedrz/lambda_calculus"}
 rand = "0.8"
 rand_chacha = "0.3.1"
 serde = { version = "1.0.202", features = ["derive"] }
