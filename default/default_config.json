@@ -9,8 +9,9 @@
   "maintain_constant_population_size": true,
   "reduction_cutoff": 500,
   "run_limit": 100000,
-  "polling_interval": 0,
+  "polling_interval": null,
   "print_reaction_results": false,
   "debrujin_output": false,
-  "seed": null
+  "generator_seed": null,
+  "reactor_seed": null,
 }
