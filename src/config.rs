@@ -47,11 +47,11 @@ pub struct Config {
 
     /// The seed for the lambda expression generator. If set to `None`, then a seed is chosen
     /// randomly. Default: `None`
-    pub generator_seed: Option<u32>, // TODO
+    pub generator_seed: Option<[u8; 32]>, // TODO
 
     /// The seed for the reactor. If set to `None`, then a seed is chosen
     /// randomly. Default: `None`
-    pub reactor_seed: Option<[u8; 32]>, // TODO
+    pub reactor_seed: Option<[u8; 32]>,
 }
 
 impl Config {
