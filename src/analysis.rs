@@ -1,7 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::soup::Soup;
-use crate::soup::Tape;
 
 use lambda_calculus::Term;
 
@@ -36,5 +35,18 @@ impl Soup {
             entropy -= pi * pi.log10();
         }
         entropy
+    }
+
+    pub fn jacard_index(&self, other: &Soup) -> f32 {
+        let selfcounts = self.expression_counts();
+        let othercounts = other.expression_counts();
+
+        let mut intersection = 0;
+        for (k, v) in selfcounts {
+            if let Some(c) = othercounts.get(k) {
+                intersection += c.min(&v);
+            }
+        }
+        (intersection as f32) / ((self.len() + other.len()) as f32)
     }
 }
