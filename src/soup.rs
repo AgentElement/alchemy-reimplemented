@@ -244,10 +244,12 @@ impl Soup {
         }
     }
 
+    /// Get an iterator over all expressions.
     pub fn expressions(&self) -> impl Iterator<Item = &Term> {
         self.expressions.iter()
     }
 
+    /// Get the number of expressions in the soup.
     pub fn len(&self) -> usize {
         self.expressions.len()
     }
