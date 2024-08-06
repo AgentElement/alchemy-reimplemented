@@ -1,11 +1,11 @@
-use lambda_calculus::Term;
+use lambda_calculus::Term::{self, Abs};
 use rand::{seq::SliceRandom, Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 
-struct LTree {
+struct BTree {
     n: u32,
-    left: Option<Box<LTree>>,
-    right: Option<Box<LTree>>,
+    left: Option<Box<BTree>>,
+    right: Option<Box<BTree>>,
     var: Option<usize>,
 }
 
@@ -20,9 +20,9 @@ pub fn standardize(term: Term, std: Standardization) -> Term {
     term
 }
 
-impl LTree {
-    fn new(n: u32) -> LTree {
-        LTree {
+impl BTree {
+    fn new(n: u32) -> BTree {
+        BTree {
             n,
             left: None,
             right: None,
@@ -31,7 +31,7 @@ impl LTree {
     }
 
     fn insert(&mut self, n: u32) {
-        let child = LTree::new(n);
+        let child = BTree::new(n);
         match (&mut self.left, &mut self.right, n <= self.n) {
             (None, _, true) => self.left = Some(Box::new(child)),
             (_, None, false) => self.right = Some(Box::new(child)),
@@ -39,7 +39,13 @@ impl LTree {
         };
     }
 
-    fn to_lambda_h(&self, rng: &mut ChaCha8Rng, freevar_p: f64, max_free_vars: u32, depth: u32) -> Term {
+    fn to_lambda_h(
+        &self,
+        rng: &mut ChaCha8Rng,
+        freevar_p: f64,
+        max_free_vars: u32,
+        depth: u32,
+    ) -> Term {
         match (&self.left, &self.right) {
             (None, None) => {
                 let var = if rng.gen_bool(freevar_p) || depth == 0 {
@@ -48,13 +54,16 @@ impl LTree {
                     rng.gen_range(1..=depth)
                 };
                 Term::Var(var as usize)
-            },
-            (Some(t), None) | (None, Some(t)) => {
-                Term::Abs(Box::new(t.to_lambda_h(rng, freevar_p, max_free_vars, depth + 1)))
             }
+            (Some(t), None) | (None, Some(t)) => Term::Abs(Box::new(t.to_lambda_h(
+                rng,
+                freevar_p,
+                max_free_vars,
+                depth + 1,
+            ))),
             (Some(l), Some(r)) => {
                 let left = l.to_lambda_h(rng, freevar_p, max_free_vars, depth);
-                let right = r.to_lambda_h(rng, freevar_p, max_free_vars depth);
+                let right = r.to_lambda_h(rng, freevar_p, max_free_vars, depth);
                 Term::App(Box::new((left, right)))
             }
         }
@@ -76,21 +85,24 @@ pub struct BTreeGen {
 }
 
 impl BTreeGen {
-    fn new() -> BTreeGen {
+    pub fn new() -> BTreeGen {
         let seed = [0; 32];
+        BTreeGen::from_seed(seed)
+    }
+
+    pub fn from_seed(seed: [u8; 32]) -> BTreeGen {
         let rng = ChaCha8Rng::from_seed(seed);
         BTreeGen {
             n: 20,
             freevar_p: 0.2,
             max_free_vars: 6,
             std: Standardization::None,
-
             seed,
             rng,
         }
     }
 
-    pub fn generate(&mut self) -> Option<Term> {
+    pub fn generate(&mut self) -> Term {
         let n = self.n;
         assert!(
             n > 0,
@@ -98,14 +110,21 @@ impl BTreeGen {
         );
         let mut permutation = (0..n).collect::<Vec<u32>>();
         permutation.shuffle(&mut self.rng);
-        let mut tree = LTree::new(permutation[0]);
+        let mut tree = BTree::new(permutation[0]);
         permutation.iter().skip(1).for_each(|i| tree.insert(*i));
-        Some(tree.to_lambda(&mut self.rng, self.freevar_p, self.max_free_vars))
+        let lambda = tree.to_lambda(&mut self.rng, self.freevar_p, self.max_free_vars);
+        BTreeGen::prefix_standardize(lambda)
     }
 
+    fn postfix_standardize(t: Term) {
+    }
 
-    pub fn set_seed(&mut self, seed: [u8; 32]) {
-        self.seed = seed;
+    fn prefix_standardize(mut t: Term) -> Term {
+        // This is horrible
+        while t.has_free_variables() {
+            t = Abs(Box::new(t))
+        }
+        t
     }
 }
 

@@ -1,4 +1,5 @@
 use clap::Parser;
+use generators::BTreeGen;
 use lambda_calculus::*;
 use std::fs::{read_to_string, File};
 use std::io::{self, BufRead, BufReader, Write};
@@ -46,6 +47,9 @@ struct Cli {
     /// Log each reaction
     #[arg(long)]
     log: bool,
+
+    #[arg(long)]
+    generate: Option<u32>,
 }
 
 /// Read lambda expressions from stdin and create a new soup from the global configuration
@@ -88,6 +92,14 @@ fn main() -> std::io::Result<()> {
 
     if cli.dump_config {
         println!("{}", config.to_config_str());
+        return Ok(());
+    }
+
+    if let Some(n) = cli.generate {
+        let mut gen = BTreeGen::new();
+        for _ in 0..n {
+            println!("{:?}", gen.generate())
+        }
         return Ok(());
     }
 
