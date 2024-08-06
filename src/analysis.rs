@@ -43,7 +43,7 @@ impl Soup {
 
         let mut intersection = 0;
         for (k, v) in selfcounts {
-            if let Some(c) = othercounts.get(k) {
+            if let Some(c) = othercounts.get(&k) {
                 intersection += c.min(&v);
             }
         }
