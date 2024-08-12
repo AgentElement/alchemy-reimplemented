@@ -25,7 +25,7 @@ struct Cli {
     reduction_cutoff: Option<usize>,
 
     /// Generate a tape that snapshots the state of the reactor every `polling_interval`
-    /// reactions. If set, this flag overwrites ``
+    /// reactions. If set, this flag overwrites `polling_interval`
     #[arg(short, long)]
     polling_interval: Option<usize>,
 
@@ -74,7 +74,51 @@ fn read_inputs_into_soup(cfg: &config::Config) -> soup::Soup {
     let expressions = expression_strings
         .iter()
         .map(|s| parse(s, Classic).unwrap());
-    let mut soup = soup::Soup::from_config(cfg);
+    let mut soup = soup::Soup::from_config(&cfg.reactor_config);
+    soup.perturb(expressions);
+    soup
+}
+
+fn get_config(cli: &Cli) -> std::io::Result<config::Config> {
+    let mut config = if let Some(filename) = &cli.config_file {
+        let contents = read_to_string(filename)?;
+        config::Config::from_config_str(&contents)
+    } else {
+        config::Config::new()
+    };
+
+    if let Some(limit) = cli.run_limit {
+        config.set_run_limit(limit);
+    }
+    if let Some(cutoff) = cli.reduction_cutoff {
+        config.set_reduction_cutoff(cutoff);
+    }
+    if cli.polling_interval.is_some() {
+        config.set_polling_interval(cli.polling_interval);
+    }
+    if cli.log {
+        config.set_verbose_logging(cli.log)
+    }
+
+    Ok(config)
+}
+
+fn generate_expressions_and_seed_soup(cfg: &config::Config) -> soup::Soup {
+    let expressions = match &cfg.generator_config {
+        config::Generator::BTree(gen_cfg) => {
+            let mut gen = generators::BTreeGen::from_config(&gen_cfg);
+            std::iter::from_fn(move || Some(gen.generate()))
+                .take(cfg.sample_size)
+                .collect::<Vec<Term>>()
+        }
+        config::Generator::Fontana(gen_cfg) => {
+            let gen = generators::FontanaGen::from_config(&gen_cfg);
+            std::iter::from_fn(move || gen.generate())
+                .take(cfg.sample_size)
+                .collect::<Vec<Term>>()
+        }
+    };
+    let mut soup = soup::Soup::from_config(&cfg.reactor_config);
     soup.perturb(expressions);
     soup
 }
@@ -89,12 +133,7 @@ fn main() -> std::io::Result<()> {
         return Ok(());
     }
 
-    let config = if let Some(filename) = cli.config_file {
-        let contents = read_to_string(filename)?;
-        config::Config::from_config_str(&contents)
-    } else {
-        config::Config::new()
-    };
+    let config = get_config(&cli)?;
 
     if cli.dump_config {
         println!("{}", config.to_config_str());
@@ -109,23 +148,19 @@ fn main() -> std::io::Result<()> {
         return Ok(());
     }
 
-    let mut soup = read_inputs_into_soup(&config);
-
-    let limit = if let Some(run_limit) = cli.run_limit {
-        run_limit
+    let mut soup = if cli.read_stdin {
+        read_inputs_into_soup(&config)
     } else {
-        config.run_limit
+        generate_expressions_and_seed_soup(&config)
     };
 
-    let log = cli.log || config.print_reaction_results;
-
-    if let Some(polling_interval) = cli.polling_interval {
-        let tape = soup.simulate_and_record(limit, polling_interval, log);
+    if let Some(polling_interval) = config.polling_interval {
+        let tape = soup.simulate_and_record(config.run_limit, polling_interval, config.verbose_logging);
         for soup in tape.history() {
             println!("{}", soup.population_entropy());
         }
     } else {
-        soup.simulate_for(limit, log);
+        soup.simulate_for(config.run_limit, config.verbose_logging);
         soup.print();
     }
 

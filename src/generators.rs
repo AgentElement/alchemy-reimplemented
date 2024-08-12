@@ -4,6 +4,7 @@ use rand_chacha::ChaCha8Rng;
 use serde::{Deserialize, Serialize};
 
 use crate::config;
+use crate::config::GenConfig;
 
 struct BTree {
     n: u32,
@@ -94,7 +95,7 @@ impl BTreeGen {
             n: cfg.size,
             freevar_p: cfg.freevar_generation_probability,
             max_free_vars: cfg.n_max_free_vars,
-            std: cfg.std,
+            std: cfg.standardization,
 
             seed,
             rng,
@@ -138,18 +139,28 @@ pub struct FontanaGen {
     abs_range: (f64, f64),
     app_range: (f64, f64),
     depth_cutoff: u32,
-    freevars_count: u32,
+    free_vars_count: u32,
 
     seed: [u8; 32],
     rng: ChaCha8Rng,
 }
 
 impl FontanaGen {
-    pub fn generate(&self) -> Option<Term> {
-        None
+    pub fn from_config(cfg: &config::FontanaGen) -> FontanaGen {
+        let seed = cfg.seed.get();
+        let rng = ChaCha8Rng::from_seed(seed);
+        FontanaGen {
+            abs_range: cfg.abstraction_prob_range,
+            app_range: cfg.application_prob_range,
+            depth_cutoff: cfg.max_depth,
+            free_vars_count: cfg.n_max_free_vars,
+
+            seed,
+            rng,
+        }
     }
 
-    pub fn set_seed(&mut self, seed: [u8; 32]) {
-        self.seed = seed;
+    pub fn generate(&self) -> Option<Term> {
+        None
     }
 }

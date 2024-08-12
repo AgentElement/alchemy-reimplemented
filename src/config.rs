@@ -17,7 +17,7 @@ pub struct Config {
     /// The number of reactions to run for this simulation. Default: `100000`.
     pub run_limit: usize,
 
-    /// The number of lambda expressions used to seed the generator. Default: `1000` 
+    /// The number of lambda expressions used to seed the generator. Default: `1000`
     pub sample_size: usize,
 
     /// Print out the state of the soup every `polling_interval` reactions. When set to `None`,
@@ -25,7 +25,7 @@ pub struct Config {
     pub polling_interval: Option<usize>,
 
     /// When set, print out all logs for each individual reaction. Default: `false`.
-    pub print_reaction_results: bool,
+    pub verbose_logging: bool,
 
     /// Configuration options for the random expression generator.
     pub generator_config: Generator,
@@ -82,6 +82,10 @@ pub enum Generator {
     Fontana(FontanaGen),
 }
 
+pub trait GenConfig {
+    fn new() -> Self;
+}
+
 /// Configuration for the BTree generator
 #[warn(missing_docs)]
 #[derive(Serialize, Deserialize, Debug)]
@@ -101,7 +105,7 @@ pub struct BTreeGen {
 
     /// Standardization scheme. Defaults to prefix standardization (this is different from the
     /// paper!)
-    pub std: Standardization,
+    pub standardization: Standardization,
 }
 
 /// Configuration for Fontana's generator
@@ -151,14 +155,26 @@ impl Reactor {
     }
 }
 
-impl BTreeGen {
+impl GenConfig for BTreeGen {
     /// Produce a new `BTreeGenConfig` struct with default values.
-    pub fn new() -> Self {
+    fn new() -> Self {
         BTreeGen {
             size: 20,
             freevar_generation_probability: 0.2,
-            std: Standardization::Postfix,
+            standardization: Standardization::Postfix,
             n_max_free_vars: 6,
+            seed: ConfigSeed(None),
+        }
+    }
+}
+
+impl GenConfig for FontanaGen {
+    fn new() -> Self {
+        FontanaGen {
+            max_depth: 10,
+            n_max_free_vars: 6,
+            application_prob_range: (0.3, 0.5),
+            abstraction_prob_range: (0.5, 0.3),
             seed: ConfigSeed(None),
         }
     }
@@ -183,7 +199,23 @@ impl Config {
             run_limit: 100000,
             sample_size: 1000,
             polling_interval: None,
-            print_reaction_results: false,
+            verbose_logging: false,
         }
+    }
+
+    pub fn set_reduction_cutoff(&mut self, cutoff: usize) {
+        self.reactor_config.reduction_cutoff = cutoff;
+    }
+
+    pub fn set_run_limit(&mut self, limit: usize) {
+        self.run_limit = limit;
+    }
+
+    pub fn set_polling_interval(&mut self, interval: Option<usize>) {
+        self.polling_interval = interval;
+    }
+
+    pub fn set_verbose_logging(&mut self, logging: bool) {
+        self.verbose_logging = logging;
     }
 }
