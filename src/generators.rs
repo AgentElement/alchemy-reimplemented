@@ -1,23 +1,21 @@
 use lambda_calculus::Term::{self, Abs};
 use rand::{seq::SliceRandom, Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
+use serde::{Deserialize, Serialize};
+
+use crate::config;
 
 struct BTree {
     n: u32,
     left: Option<Box<BTree>>,
     right: Option<Box<BTree>>,
-    var: Option<usize>,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub enum Standardization {
     Prefix,
     Postfix,
     None,
-}
-
-pub fn standardize(term: Term, std: Standardization) -> Term {
-    term
 }
 
 impl BTree {
@@ -26,7 +24,6 @@ impl BTree {
             n,
             left: None,
             right: None,
-            var: None,
         }
     }
 
@@ -74,6 +71,7 @@ impl BTree {
     }
 }
 
+
 pub struct BTreeGen {
     n: u32,
     freevar_p: f64,
@@ -86,17 +84,18 @@ pub struct BTreeGen {
 
 impl BTreeGen {
     pub fn new() -> BTreeGen {
-        let seed = [0; 32];
-        BTreeGen::from_seed(seed)
+        BTreeGen::from_config(&config::BTreeGen::new())
     }
 
-    pub fn from_seed(seed: [u8; 32]) -> BTreeGen {
+    pub fn from_config(cfg: &config::BTreeGen) -> BTreeGen {
+        let seed = cfg.seed.get();
         let rng = ChaCha8Rng::from_seed(seed);
         BTreeGen {
-            n: 20,
-            freevar_p: 0.2,
-            max_free_vars: 6,
-            std: Standardization::None,
+            n: cfg.size,
+            freevar_p: cfg.freevar_generation_probability,
+            max_free_vars: cfg.n_max_free_vars,
+            std: cfg.std,
+
             seed,
             rng,
         }
@@ -113,14 +112,21 @@ impl BTreeGen {
         let mut tree = BTree::new(permutation[0]);
         permutation.iter().skip(1).for_each(|i| tree.insert(*i));
         let lambda = tree.to_lambda(&mut self.rng, self.freevar_p, self.max_free_vars);
-        BTreeGen::prefix_standardize(lambda)
+        match self.std {
+            Standardization::Postfix => BTreeGen::postfix_standardize(lambda),
+            Standardization::Prefix => BTreeGen::prefix_standardize(lambda),
+            Standardization::None => lambda,
+        }
     }
 
-    fn postfix_standardize(t: Term) {
+    fn postfix_standardize(t: Term) -> Term {
+        unimplemented!("Postix standiardization is unimplimented!!!!");
     }
 
+    /// Add abstractions until the expression has no free variables
     fn prefix_standardize(mut t: Term) -> Term {
-        // This is horrible
+        // This is horrible, and can easily be made more efficient. Fortunaltely,
+        // lambda-expression generation is a one-off thing!
         while t.has_free_variables() {
             t = Abs(Box::new(t))
         }

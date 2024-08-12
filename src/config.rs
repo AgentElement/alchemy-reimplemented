@@ -1,9 +1,43 @@
+use rand::{thread_rng, Rng};
+
 use serde::{Deserialize, Serialize};
+
+use crate::generators::Standardization;
+
+/// Represents a seed for serde RNGs in the configuration file. Mostly here because we want
+/// to ser/de to/from a hex string.
+#[warn(missing_docs)]
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ConfigSeed(Option<[u8; 32]>);
 
 /// `Config` stores the global configuration of the program.
 #[warn(missing_docs)]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
+    /// The number of reactions to run for this simulation. Default: `100000`.
+    pub run_limit: usize,
+
+    /// The number of lambda expressions used to seed the generator. Default: `1000` 
+    pub sample_size: usize,
+
+    /// Print out the state of the soup every `polling_interval` reactions. When set to `None`,
+    /// never poll. Default: `None`.
+    pub polling_interval: Option<usize>,
+
+    /// When set, print out all logs for each individual reaction. Default: `false`.
+    pub print_reaction_results: bool,
+
+    /// Configuration options for the random expression generator.
+    pub generator_config: Generator,
+
+    /// Configuration options for the lambda reactor.
+    pub reactor_config: Reactor,
+}
+
+/// Configuration for the reactor
+#[warn(missing_docs)]
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Reactor {
     /// Set of reaction rules. Each rule must always be a lambda expressions
     /// with two arguments. Default: `["\x.\y.x y"]`.
     pub rules: Vec<String>,
@@ -32,40 +66,78 @@ pub struct Config {
     ///  `500`.
     pub reduction_cutoff: usize,
 
-    /// The number of reactions to run for this simulation. Default: `100000`
-    pub run_limit: usize,
-
-    /// Print out the state of the soup every `polling_interval` reactions. When set to `None`, never
-    /// poll. Default: `None`
-    pub polling_interval: Option<usize>, // TODO
-
-    /// When set, print out all logs for each individual reaction. Default: `false`
-    pub print_reaction_results: bool,
-
-    /// When set, print out the soup in debruijn notation. Default: `false`
-    pub debrujin_output: bool,
-
-    /// The seed for the lambda expression generator. If set to `None`, then a seed is chosen
-    /// randomly. Default: `None`
-    pub generator_seed: Option<[u8; 32]>, // TODO
-
     /// The seed for the reactor. If set to `None`, then a seed is chosen
     /// randomly. Default: `None`
-    pub reactor_seed: Option<[u8; 32]>,
+    pub seed: ConfigSeed,
 }
 
-impl Config {
-    pub fn from_config_str(s: &str) -> Config {
-        serde_json::from_str(s).unwrap()
-    }
+/// Configuration for the generators
+#[warn(missing_docs)]
+#[derive(Serialize, Deserialize, Debug)]
+pub enum Generator {
+    /// Use the btree generator
+    BTree(BTreeGen),
 
-    pub fn to_config_str(&self) -> String {
-        serde_json::to_string(self).unwrap()
-    }
+    /// Use Fontana's generator
+    Fontana(FontanaGen),
+}
 
-    /// Produce a new `Config` struct with default values.
+/// Configuration for the BTree generator
+#[warn(missing_docs)]
+#[derive(Serialize, Deserialize, Debug)]
+pub struct BTreeGen {
+    /// The seed for the lambda expression generator. If set to `None`, then a seed is chosen
+    /// randomly. Default: `None`
+    pub seed: ConfigSeed,
+
+    /// Number of nodes in the binary tree
+    pub size: u32,
+
+    /// Probability that a leaf vertex is a free variable
+    pub freevar_generation_probability: f64,
+
+    /// Size of the free variable palette
+    pub n_max_free_vars: u32,
+
+    /// Standardization scheme. Defaults to prefix standardization (this is different from the
+    /// paper!)
+    pub std: Standardization,
+}
+
+/// Configuration for Fontana's generator
+#[warn(missing_docs)]
+#[derive(Serialize, Deserialize, Debug)]
+pub struct FontanaGen {
+    /// The seed for the lambda expression generator. If set to `None`, then a seed is chosen
+    /// randomly. Default: `None`
+    pub seed: ConfigSeed,
+
+    /// Probability range of an abstraction being generated. Linearly changes from start to end,
+    /// varying with depth
+    pub abstraction_prob_range: (f64, f64),
+
+    /// Probability range of an application being generated. Linearly changes from start to end,
+    /// varying with depth
+    pub application_prob_range: (f64, f64),
+
+    /// Maximum depth of the generated trees
+    pub max_depth: u32,
+
+    /// Size of the free variable palette
+    pub n_max_free_vars: u32,
+}
+
+impl ConfigSeed {
+    /// Get the seed item
+    pub fn get(&self) -> [u8; 32] {
+        self.0.unwrap_or(thread_rng().gen())
+    }
+}
+
+impl Reactor {
+    /// Produce a new `ReactorConfig` struct with default values.
     pub fn new() -> Self {
-        Config {
+        Reactor {
             rules: vec![String::from("\\x.\\y.x y")],
 
             discard_copy_actions: true,
@@ -74,12 +146,44 @@ impl Config {
             maintain_constant_population_size: true,
             discard_parents: false,
             reduction_cutoff: 500,
+            seed: ConfigSeed(None),
+        }
+    }
+}
+
+impl BTreeGen {
+    /// Produce a new `BTreeGenConfig` struct with default values.
+    pub fn new() -> Self {
+        BTreeGen {
+            size: 20,
+            freevar_generation_probability: 0.2,
+            std: Standardization::Postfix,
+            n_max_free_vars: 6,
+            seed: ConfigSeed(None),
+        }
+    }
+}
+
+impl Config {
+    /// Create a config object from a string
+    pub fn from_config_str(s: &str) -> Config {
+        serde_json::from_str(s).unwrap()
+    }
+
+    /// Convert the config object to a string
+    pub fn to_config_str(&self) -> String {
+        serde_json::to_string(self).unwrap()
+    }
+
+    /// Produce a new `Config` struct with default values.
+    pub fn new() -> Self {
+        Config {
+            reactor_config: Reactor::new(),
+            generator_config: Generator::BTree(BTreeGen::new()),
             run_limit: 100000,
+            sample_size: 1000,
             polling_interval: None,
             print_reaction_results: false,
-            debrujin_output: false,
-            generator_seed: None,
-            reactor_seed: None,
         }
     }
 }

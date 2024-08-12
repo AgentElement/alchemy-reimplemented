@@ -1,6 +1,6 @@
 use crate::config;
 use lambda_calculus::{abs, app, Term, Var};
-use rand::{thread_rng, Rng, SeedableRng};
+use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 
 /// The principal AlChemy object. The `Soup` struct contains a set of
@@ -49,12 +49,12 @@ impl Soup {
     /// Generate an empty soup with the following configuration options:
     ///
     pub fn new() -> Self {
-        Soup::from_config(&config::Config::new())
+        Soup::from_config(&config::Reactor::new())
     }
 
     /// Generate an empty soup from a given `config` object.
-    pub fn from_config(cfg: &config::Config) -> Self {
-        let seed = cfg.reactor_seed.unwrap_or(thread_rng().gen());
+    pub fn from_config(cfg: &config::Reactor) -> Self {
+        let seed = cfg.seed.get();
         let rng = ChaCha8Rng::from_seed(seed);
         Soup {
             expressions: Vec::new(),

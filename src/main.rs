@@ -19,14 +19,19 @@ mod soup;
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Cli {
-    /// Fail a reaction if it takes more than `reduction_cutoff` steps to reduce
+    /// Fail a reaction if it takes more than `reduction_cutoff` steps to reduce. If set, this
+    /// flag overwrites the `reactor_config.reactor_config` configuration option.
     #[arg(short = 'f', long)]
     reduction_cutoff: Option<usize>,
 
-    /// When set, generate a tape that snapshots the state of the reactor every `polling_interval`
-    /// reactions
+    /// Generate a tape that snapshots the state of the reactor every `polling_interval`
+    /// reactions. If set, this flag overwrites ``
     #[arg(short, long)]
     polling_interval: Option<usize>,
+
+    /// Number of reactions to run before printing out final soup. If set,
+    #[arg(short, long)]
+    run_limit: Option<usize>,
 
     /// Explicit path to configuration file
     #[arg(short, long)]
@@ -40,16 +45,17 @@ struct Cli {
     #[arg(short, long)]
     make_default_config: bool,
 
-    /// Number of reactions to run before printing out final soup
-    #[arg(short, long)]
-    run_limit: Option<usize>,
+    /// Generate n lambda expresions and exit
+    #[arg(long)]
+    generate: Option<u32>,
+
+    /// Read expressions from stdin instead of generating own expressions
+    #[arg(long)]
+    read_stdin: bool,
 
     /// Log each reaction
     #[arg(long)]
     log: bool,
-
-    #[arg(long)]
-    generate: Option<u32>,
 }
 
 /// Read lambda expressions from stdin and create a new soup from the global configuration
@@ -104,12 +110,6 @@ fn main() -> std::io::Result<()> {
     }
 
     let mut soup = read_inputs_into_soup(&config);
-
-    soup.set_limit(if let Some(cutoff) = cli.reduction_cutoff {
-        cutoff
-    } else {
-        config.reduction_cutoff
-    });
 
     let limit = if let Some(run_limit) = cli.run_limit {
         run_limit
