@@ -47,7 +47,6 @@ struct ReactionResult {
 
 impl Soup {
     /// Generate an empty soup with the following configuration options:
-    ///
     pub fn new() -> Self {
         Soup::from_config(&config::Reactor::new())
     }
@@ -252,6 +251,13 @@ impl Soup {
     /// Get the number of expressions in the soup.
     pub fn len(&self) -> usize {
         self.expressions.len()
+    }
+}
+
+/// Clippy asked me to do this
+impl Default for Soup {
+    fn default() -> Self {
+        Soup::new()
     }
 }
 
