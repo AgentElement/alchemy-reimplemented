@@ -72,7 +72,6 @@ impl BTree {
     }
 }
 
-
 pub struct BTreeGen {
     n: u32,
     freevar_p: f64,
@@ -118,6 +117,14 @@ impl BTreeGen {
             Standardization::Prefix => BTreeGen::prefix_standardize(lambda),
             Standardization::None => lambda,
         }
+    }
+
+    pub fn generate_n(&mut self, n: usize) -> Vec<Term> {
+        let mut v = Vec::with_capacity(n);
+        for _ in 0..n {
+            v.push(self.generate())
+        }
+        v
     }
 
     fn postfix_standardize(t: Term) -> Term {
