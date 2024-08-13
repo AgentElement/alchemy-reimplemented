@@ -155,13 +155,21 @@ impl Reactor {
     }
 }
 
+// TODO: Eventually, all config objects will use `default` instead of `new`. For now, this just
+// fixes a clippy lint
+impl Default for Reactor {
+    fn default() -> Self {
+        Reactor::new()
+    }
+}
+
 impl GenConfig for BTreeGen {
     /// Produce a new `BTreeGenConfig` struct with default values.
     fn new() -> Self {
         BTreeGen {
             size: 20,
             freevar_generation_probability: 0.2,
-            standardization: Standardization::Postfix,
+            standardization: Standardization::Prefix,
             n_max_free_vars: 6,
             seed: ConfigSeed(None),
         }
