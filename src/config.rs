@@ -136,6 +136,10 @@ impl ConfigSeed {
     pub fn get(&self) -> [u8; 32] {
         self.0.unwrap_or(thread_rng().gen())
     }
+
+    pub fn new(seed: [u8; 32]) -> Self {
+        ConfigSeed(Some(seed))
+    }
 }
 
 impl Reactor {
