@@ -4,12 +4,6 @@ use crate::soup::Soup;
 
 use lambda_calculus::Term;
 
-struct Property {
-    n: usize,
-    rhs: Vec<usize>,
-}
-
-
 impl Soup {
     // This is expensive, quadratic in the number of expressions. It can
     // probably be written to be faster, but it's not a bottleneck right now.
@@ -25,7 +19,9 @@ impl Soup {
         map
     }
 
-    fn find_functions_with_property(&self, property: &Property) {}
+    pub fn is_dominated_by_k_exprs(&self, _k: usize) -> bool {
+        false
+    }
 
     pub fn population_entropy(&self) -> f32 {
         let mut entropy = 0.0;
