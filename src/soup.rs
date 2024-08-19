@@ -1,3 +1,6 @@
+use core::fmt;
+use std::fmt::{Debug, Display};
+
 use crate::config;
 use lambda_calculus::{abs, app, Term, Var};
 use rand::{Rng, SeedableRng};
@@ -17,7 +20,6 @@ pub struct Soup {
     discard_free_variable_expressions: bool,
     discard_parents: bool,
 
-    seed: [u8; 32],
     rng: ChaCha8Rng,
 }
 
@@ -45,6 +47,15 @@ struct ReactionResult {
     pub right_size: u32,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ReactionError {
+    ExceedsReductionLimit,
+    NotEnoughExpressions,
+    IsIdentity,
+    IsParent,
+    HasFreeVariables,
+}
+
 impl Soup {
     /// Generate an empty soup with the following configuration options:
     pub fn new() -> Self {
@@ -69,7 +80,6 @@ impl Soup {
             discard_parents: cfg.discard_parents,
             discard_identity: cfg.discard_identity,
             discard_free_variable_expressions: cfg.discard_free_variable_expressions,
-            seed,
             rng,
         }
     }
@@ -89,36 +99,36 @@ impl Soup {
     /// Return the result of ((`rule` `left`) `right`), up to a limit of
     /// `self.reduction_limit`.
     // TODO: return a proper error type instead of `String`.
-    fn collide(&self, rule: Term, left: Term, right: Term) -> Result<(Term, usize), String> {
+    fn collide(&self, rule: Term, left: Term, right: Term) -> Result<(Term, usize), ReactionError> {
         let mut expr = app!(rule, left.clone(), right.clone());
-        let n = expr.reduce(lambda_calculus::HNO, self.reduction_limit);
+        let n = expr.reduce(lambda_calculus::HAP, self.reduction_limit);
         if n == self.reduction_limit {
-            return Err(String::from("collision exceeds reduction limit"));
+            return Err(ReactionError::ExceedsReductionLimit);
         }
 
         let identity = abs(Var(1));
         if expr.is_isomorphic_to(&identity) && self.discard_identity {
-            return Err(String::from("collision result is identity function"));
+            return Err(ReactionError::IsIdentity);
         }
 
         let is_copy_action = expr.is_isomorphic_to(&left) || expr.is_isomorphic_to(&right);
         if is_copy_action && self.discard_copy_actions {
-            return Err(String::from("collision result is isomorphic to parent"));
+            return Err(ReactionError::IsParent);
         }
 
         if expr.has_free_variables() && self.discard_free_variable_expressions {
-            return Err(String::from("collision result has free variables"));
+            return Err(ReactionError::HasFreeVariables);
         }
 
         Ok((expr, n))
     }
 
     /// Produce one atomic reaction on the soup.
-    fn react(&mut self) -> Result<ReactionResult, String> {
+    fn react(&mut self) -> Result<ReactionResult, ReactionError> {
         let n_expr = self.expressions.len();
 
         if n_expr < 2 {
-            return Err(String::from("Not enough expressions for further reactions"));
+            return Err(ReactionError::NotEnoughExpressions);
         }
 
         // Remove two distinct expressions randomly from the soup
@@ -184,7 +194,13 @@ impl Soup {
         })
     }
 
-    fn log_message_from_reaction(reaction: &Result<ReactionResult, String>) -> String {
+    fn log_failure_reaction(reaction: &Result<ReactionResult, ReactionError>) {
+        if let Err(message) = reaction {
+            println!("failed because {}", message)
+        }
+    }
+
+    fn log_message_from_reaction(reaction: &Result<ReactionResult, ReactionError>) -> String {
         match reaction {
             Ok(result) => format!(
                 "successful with {} reductions between expressions of
@@ -205,8 +221,9 @@ impl Soup {
             let reaction = self.react();
 
             if log {
-                let message = Soup::log_message_from_reaction(&reaction);
-                println!("reaction {:?} {}", i, message)
+                // let message = Soup::log_message_from_reaction(&reaction);
+                // println!("reaction {:?} {}", i, message)
+                Soup::log_failure_reaction(&reaction);
             }
         }
     }
@@ -254,13 +271,6 @@ impl Soup {
     }
 }
 
-/// Clippy asked me to do this
-impl Default for Soup {
-    fn default() -> Self {
-        Soup::new()
-    }
-}
-
 impl Tape {
     pub fn final_state(&self) -> &Soup {
         &self.soup
@@ -274,3 +284,30 @@ impl Tape {
         self.polling_interval
     }
 }
+
+/// Clippy asked me to do this
+impl Default for Soup {
+    fn default() -> Self {
+        Soup::new()
+    }
+}
+
+impl fmt::Display for ReactionError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ReactionError::IsIdentity => Display::fmt("collision result is identity function", f),
+            ReactionError::IsParent => Display::fmt("collision result is isomorphic to parent", f),
+            ReactionError::ExceedsReductionLimit => {
+                Display::fmt("collision exceeds reduction limit", f)
+            }
+            ReactionError::NotEnoughExpressions => {
+                Display::fmt("not enough expressions for further reactions", f)
+            }
+            ReactionError::HasFreeVariables => {
+                Display::fmt("collision result has free variables", f)
+            }
+        }
+    }
+}
+
+impl std::error::Error for ReactionError {}
