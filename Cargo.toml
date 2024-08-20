@@ -9,7 +9,7 @@ edition = "2021"
 async-std = "1.12.0"
 clap = { version = "4.5.4", features = ["derive"] }
 futures = "0.3.30"
-lambda_calculus = {git = "https://github.com/ljedrz/lambda_calculus"}
+lambda_calculus = {git = "https://github.com/agentelement/lambda_calculus", branch = "size-feat"}
 plotters = "0.3.6"
 rand = "0.8"
 rand_chacha = "0.3.1"

@@ -925,7 +925,7 @@ dependencies = [
 [[package]]
 name = "lambda_calculus"
 version = "3.3.0"
-source = "git+https://github.com/ljedrz/lambda_calculus#c961a869398c1710dde5a609ee41a94d3f71cd74"
+source = "git+https://github.com/agentelement/lambda_calculus?branch=size-feat#8346381fc0df29f3ed5022913d58d3a5244c22e7"
 
 [[package]]
 name = "lazy_static"
