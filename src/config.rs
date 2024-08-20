@@ -66,6 +66,9 @@ pub struct Reactor {
     ///  `500`.
     pub reduction_cutoff: usize,
 
+    /// The largest size of any expression during a reduction step. Defaults to `1024`.
+    pub size_cutoff: usize,
+
     /// The seed for the reactor. If set to `None`, then a seed is chosen
     /// randomly. Default: `None`
     pub seed: ConfigSeed,
@@ -154,6 +157,7 @@ impl Reactor {
             maintain_constant_population_size: true,
             discard_parents: false,
             reduction_cutoff: 500,
+            size_cutoff: 500,
             seed: ConfigSeed(None),
         }
     }

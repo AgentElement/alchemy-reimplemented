@@ -13,6 +13,7 @@ pub struct Soup {
     expressions: Vec<Term>,
     reaction_rules: Vec<Term>,
     reduction_limit: usize,
+    size_limit: usize,
 
     maintain_constant_population_size: bool,
     discard_copy_actions: bool,
@@ -54,6 +55,7 @@ pub enum ReactionError {
     IsIdentity,
     IsParent,
     HasFreeVariables,
+    ExceedsDepthLimit,
 }
 
 impl Soup {
@@ -74,6 +76,7 @@ impl Soup {
                 .map(|r| lambda_calculus::parse(r, lambda_calculus::Classic).unwrap())
                 .collect(),
             reduction_limit: cfg.reduction_cutoff,
+            size_limit: cfg.size_cutoff,
 
             maintain_constant_population_size: cfg.maintain_constant_population_size,
             discard_copy_actions: cfg.discard_copy_actions,
@@ -101,7 +104,22 @@ impl Soup {
     // TODO: return a proper error type instead of `String`.
     fn collide(&self, rule: Term, left: Term, right: Term) -> Result<(Term, usize), ReactionError> {
         let mut expr = app!(rule, left.clone(), right.clone());
-        let n = expr.reduce(lambda_calculus::HAP, self.reduction_limit);
+
+        let mut n = 0;
+        for _ in 0..self.reduction_limit {
+            if expr.reduce(lambda_calculus::HAP, 1) == 0 {
+                break;
+            }
+
+            // WARNING: This is EXTREMELY expensive. Calling max_depth is log(depth), and is done
+            // per reduction step. Remove when possible.
+            let depth = expr.size();
+            if depth > self.size_limit {
+                return Err(ReactionError::ExceedsDepthLimit);
+            }
+            n += 1;
+        }
+
         if n == self.reduction_limit {
             return Err(ReactionError::ExceedsReductionLimit);
         }
@@ -215,10 +233,15 @@ impl Soup {
     }
 
     /// Simulate the soup for `n` collisions. If `log` is set, then print
-    /// out a log message for each reaction
-    pub fn simulate_for(&mut self, n: usize, log: bool) {
-        for i in 0..n {
+    /// out a log message for each reaction. Returns the number of successful reactions
+    /// (the fraction of failed reactions).
+    pub fn simulate_for(&mut self, n: usize, log: bool) -> usize {
+        let mut n_successes = 0;
+        for _ in 0..n {
             let reaction = self.react();
+            if reaction.is_ok() {
+                n_successes += 1;
+            }
 
             if log {
                 // let message = Soup::log_message_from_reaction(&reaction);
@@ -226,6 +249,31 @@ impl Soup {
                 Soup::log_failure_reaction(&reaction);
             }
         }
+        n_successes
+    }
+
+    pub fn simulate_and_poll<F, T>(
+        &mut self,
+        n: usize,
+        polling_interval: usize,
+        log: bool,
+        poller: F,
+    ) -> Vec<T>
+    where
+        F: Fn(&Self) -> T,
+    {
+        let mut data: Vec<T> = Vec::new(); 
+        for i in 0..n {
+            let reaction = self.react();
+            if (i % polling_interval) == 0 {
+                data.push(poller(self))
+            }
+            if log {
+                let message = Soup::log_message_from_reaction(&reaction);
+                println!("reaction {:?} {}", i, message)
+            }
+        }
+        data
     }
 
     /// Simulate the soup for `n` collisions, recording the state of the soup every
@@ -305,6 +353,10 @@ impl fmt::Display for ReactionError {
             }
             ReactionError::HasFreeVariables => {
                 Display::fmt("collision result has free variables", f)
+            }
+
+            ReactionError::ExceedsDepthLimit => {
+                Display::fmt("expression exceeds depth limit during reduction", f)
             }
         }
     }
