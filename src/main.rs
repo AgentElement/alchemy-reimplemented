@@ -1,4 +1,5 @@
-use clap::Parser;
+use clap::{Parser, ValueEnum};
+use futures::executor::block_on;
 use generators::BTreeGen;
 use lambda_calculus::*;
 use std::fs::{read_to_string, File};
@@ -16,6 +17,18 @@ mod generators;
 /// Main AlChemy simulation module
 mod soup;
 
+/// Experimental stuff
+mod experiments;
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]
+pub enum Experiment {
+    XorsetStability,
+    XorsetSearch,
+    SyncEntropyTest,
+    EntropyTest,
+    EntropySeries,
+}
+
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Cli {
@@ -25,11 +38,12 @@ struct Cli {
     reduction_cutoff: Option<usize>,
 
     /// Generate a tape that snapshots the state of the reactor every `polling_interval`
-    /// reactions. If set, this flag overwrites `polling_interval`
+    /// reactions. If set, this flag overwrites the `polling_interval` configuration option.
     #[arg(short, long)]
     polling_interval: Option<usize>,
 
-    /// Number of reactions to run before printing out final soup. If set,
+    /// Number of reactions to run before printing out final soup. If set, this flag overwrites the
+    /// `run_limit` configuration option.
     #[arg(short, long)]
     run_limit: Option<usize>,
 
@@ -40,6 +54,10 @@ struct Cli {
     /// Dump out the current config and exit
     #[arg(long)]
     dump_config: bool,
+
+    /// Run an experiment and exit
+    #[arg(short, long)]
+    experiment: Option<Experiment>,
 
     /// Make a default config file in the current directory and exit
     #[arg(short, long)]
@@ -103,16 +121,14 @@ fn get_config(cli: &Cli) -> std::io::Result<config::Config> {
     Ok(config)
 }
 
-fn generate_expressions_and_seed_soup(cfg: &config::Config) -> soup::Soup {
+pub fn generate_expressions_and_seed_soup(cfg: &config::Config) -> soup::Soup {
     let expressions = match &cfg.generator_config {
         config::Generator::BTree(gen_cfg) => {
-            let mut gen = generators::BTreeGen::from_config(&gen_cfg);
-            std::iter::from_fn(move || Some(gen.generate()))
-                .take(cfg.sample_size)
-                .collect::<Vec<Term>>()
+            let mut gen = generators::BTreeGen::from_config(gen_cfg);
+            gen.generate_n(cfg.sample_size)
         }
         config::Generator::Fontana(gen_cfg) => {
-            let gen = generators::FontanaGen::from_config(&gen_cfg);
+            let gen = generators::FontanaGen::from_config(gen_cfg);
             std::iter::from_fn(move || gen.generate())
                 .take(cfg.sample_size)
                 .collect::<Vec<Term>>()
@@ -148,6 +164,17 @@ fn main() -> std::io::Result<()> {
         return Ok(());
     }
 
+    if let Some(e) = cli.experiment {
+        match e {
+            Experiment::XorsetStability => {},
+            Experiment::XorsetSearch => {block_on(experiments::look_for_xorset());},
+            Experiment::EntropyTest => {block_on(experiments::entropy_test());},
+            Experiment::EntropySeries => {block_on(experiments::entropy_series());},
+            Experiment::SyncEntropyTest => {experiments::sync_entropy_test()},
+        }
+        return Ok(());
+    }
+
     let mut soup = if cli.read_stdin {
         read_inputs_into_soup(&config)
     } else {
@@ -155,7 +182,8 @@ fn main() -> std::io::Result<()> {
     };
 
     if let Some(polling_interval) = config.polling_interval {
-        let tape = soup.simulate_and_record(config.run_limit, polling_interval, config.verbose_logging);
+        let tape =
+            soup.simulate_and_record(config.run_limit, polling_interval, config.verbose_logging);
         for soup in tape.history() {
             println!("{}", soup.population_entropy());
         }
