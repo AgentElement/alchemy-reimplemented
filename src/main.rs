@@ -20,6 +20,9 @@ mod soup;
 /// Experimental stuff
 mod experiments;
 
+/// Utilities
+mod utils;
+
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]
 pub enum Experiment {
     XorsetStability,

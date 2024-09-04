@@ -3,24 +3,113 @@ use std::error::Error;
 use async_std::task::spawn;
 use clap::error::Result;
 use futures::{stream::FuturesUnordered, StreamExt};
-use lambda_calculus::{app, beta, reduction::Order::NOR, Term};
+use lambda_calculus::{app, Term};
 use plotters::prelude::*;
 
-use crate::{config, generators::BTreeGen, soup::Soup};
+use crate::{
+    config,
+    generators::BTreeGen,
+    soup::{reduce_with_limit, Soup},
+};
 
-fn xorset_test(a: Term, b: Term) -> bool {
-    let aa = beta(app(a.clone(), a.clone()), NOR, 10000);
-    let ab = beta(app(a.clone(), b.clone()), NOR, 10000);
-    let ba = beta(app(b.clone(), a.clone()), NOR, 10000);
-    let bb = beta(app(b.clone(), b.clone()), NOR, 10000);
+fn xorset_test(a: &Term, b: &Term) -> bool {
+    if a.is_isomorphic_to(b) {
+        return false
+    }
 
-    aa.is_isomorphic_to(&a)
-        && ab.is_isomorphic_to(&b)
-        && ba.is_isomorphic_to(&b)
-        && bb.is_isomorphic_to(&a)
+    let mut aa = app(a.clone(), a.clone());
+    let mut ab = app(a.clone(), b.clone());
+    let mut ba = app(b.clone(), a.clone());
+    let mut bb = app(b.clone(), b.clone());
+
+    let _ = reduce_with_limit(&mut aa, 512, 1024);
+    let _ = reduce_with_limit(&mut ba, 512, 1024);
+    let _ = reduce_with_limit(&mut ab, 512, 1024);
+    let _ = reduce_with_limit(&mut bb, 512, 1024);
+
+    aa.is_isomorphic_to(a)
+        && ab.is_isomorphic_to(b)
+        && ba.is_isomorphic_to(b)
+        && bb.is_isomorphic_to(a)
 }
 
-pub async fn look_for_xorset() {}
+fn pairwise_compare<F>(terms: &[Term], test: F) -> Option<(Term, Term)>
+where
+    F: Fn(&Term, &Term) -> bool,
+{
+    for (i, t1) in terms.iter().enumerate() {
+        for (j, t2) in terms.iter().enumerate() {
+            if test(t1, t2) {
+                return Some((t1.clone(), t2.clone()));
+            }
+            if j >= i {
+                break;
+            }
+        }
+    }
+    None
+}
+
+async fn simulate_soup_murder(
+    sample: impl Iterator<Item = Term>,
+    id: usize,
+    run_length: usize,
+    polling_interval: usize,
+) -> (usize, Vec<Option<(Term, Term)>>) {
+    let mut soup = Soup::from_config(&config::Reactor {
+        rules: vec![String::from("\\x.\\y.x y")],
+        discard_copy_actions: false,
+        discard_identity: false,
+        discard_free_variable_expressions: true,
+        maintain_constant_population_size: true,
+        discard_parents: false,
+        reduction_cutoff: 512,
+        size_cutoff: 1024,
+        seed: config::ConfigSeed::new([0; 32]),
+    });
+    soup.perturb(sample);
+    let check_series =
+        soup.simulate_and_poll_with_killer(run_length, polling_interval, false, |s| {
+            let bests = s.k_most_frequent_exprs(10);
+            let pairs = pairwise_compare(&bests, xorset_test);
+            (pairs.clone(), pairs.is_some())
+        });
+    (id, check_series)
+}
+
+pub async fn look_for_xorset() {
+    let mut gen = BTreeGen::from_config(&config::BTreeGen {
+        size: 20,
+        freevar_generation_probability: 0.2,
+        standardization: crate::generators::Standardization::Prefix,
+        n_max_free_vars: 6,
+        seed: config::ConfigSeed::new([0; 32]),
+    });
+    let mut futures = FuturesUnordered::new();
+    let run_length = 10000000;
+    let polling_interval = 1000;
+    for i in 0..1000 {
+        let sample = gen.generate_n(10000);
+        futures.push(spawn(simulate_soup_murder(
+            sample.into_iter(),
+            i,
+            run_length,
+            polling_interval,
+        )));
+    }
+
+    print!("Soup, ");
+    println!();
+    while let Some((id, series)) = futures.next().await {
+        print!("{}, ", id);
+        for i in series {
+            if i.is_some() {
+                print!("{:?}, ", i)
+            }
+        }
+        println!();
+    }
+}
 
 async fn simulate_soup(
     sample: impl Iterator<Item = Term>,
@@ -77,7 +166,7 @@ pub async fn entropy_series() {
         seed: config::ConfigSeed::new([0; 32]),
     });
     let mut futures = FuturesUnordered::new();
-    let run_length = 1000000;
+    let run_length = 10000000;
     let polling_interval = 1000;
     let polls = run_length / polling_interval;
     for i in 0..1000 {
@@ -137,6 +226,7 @@ pub fn sync_entropy_test() {
         n_max_free_vars: 6,
         seed: config::ConfigSeed::new([0; 32]),
     });
+
     for i in 0..100 {
         let sample = gen.generate_n(1000);
         let mut soup = Soup::from_config(&config::Reactor {
