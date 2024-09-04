@@ -286,6 +286,34 @@ impl Soup {
         data
     }
 
+    pub fn simulate_and_poll_with_killer<F, T>(
+        &mut self,
+        n: usize,
+        polling_interval: usize,
+        log: bool,
+        killpoller: F,
+    ) -> Vec<T>
+    where
+        F: Fn(&Self) -> (T, bool),
+    {
+        let mut data: Vec<T> = Vec::new();
+        for i in 0..n {
+            let reaction = self.react();
+            if (i % polling_interval) == 0 {
+                let (datum, should_kill) = killpoller(self);
+                data.push(datum);
+                if should_kill {
+                    return data;
+                };
+            }
+            if log {
+                let message = Soup::log_message_from_reaction(&reaction);
+                println!("reaction {:?} {}", i, message)
+            }
+        }
+        data
+    }
+
     /// Simulate the soup for `n` collisions, recording the state of the soup every
     /// `polling_interval` reactions. If `log` is set, then print out a log message for each
     /// reaction
