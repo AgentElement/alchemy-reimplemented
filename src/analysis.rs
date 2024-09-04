@@ -1,6 +1,8 @@
-use std::collections::{HashMap, HashSet};
+use std::cmp::Reverse;
+use std::collections::{BinaryHeap, HashMap, HashSet};
 
 use crate::soup::Soup;
+use crate::utils::HeapObject;
 
 use lambda_calculus::Term;
 
@@ -14,13 +16,32 @@ impl Soup {
     pub fn expression_counts(&self) -> HashMap<Term, u32> {
         let mut map = HashMap::<Term, u32>::new();
         for expr in self.expressions().cloned() {
-            map.entry(expr).and_modify(|e| *e += 1).or_insert(1);
+            *map.entry(expr).or_default() += 1
         }
         map
     }
 
-    pub fn is_dominated_by_k_exprs(&self, _k: usize) -> bool {
-        false
+    // The use of HeapObject is a code smell, refactor later
+    pub fn k_most_frequent_exprs(&self, k: usize) -> Vec<Term> {
+        let mut map = HashMap::<&Term, u32>::new();
+        for x in self.expressions() {
+            *map.entry(x).or_default() += 1;
+        }
+
+        let mut heap = BinaryHeap::with_capacity(k + 1);
+        for (x, count) in map.into_iter() {
+            heap.push(Reverse(HeapObject::new(count, x)));
+            if heap.len() > k {
+                heap.pop();
+            }
+        }
+        heap.into_sorted_vec()
+            .into_iter()
+            .map(|r| {
+                let tup = r.0.to_tuple();
+                tup.1.clone()
+            })
+            .collect()
     }
 
     pub fn population_entropy(&self) -> f32 {
