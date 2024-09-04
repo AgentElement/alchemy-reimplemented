@@ -58,6 +58,28 @@ pub enum ReactionError {
     ExceedsDepthLimit,
 }
 
+pub fn reduce_with_limit(
+    expr: &mut Term,
+    rlimit: usize,
+    slimit: usize,
+) -> Result<usize, ReactionError> {
+    let mut n = 0;
+    for _ in 0..rlimit {
+        if expr.reduce(lambda_calculus::HAP, 1) == 0 {
+            break;
+        }
+
+        // WARNING: This is EXTREMELY expensive. Calling max_depth is log(depth), and is done
+        // per reduction step. Remove when possible.
+        let depth = expr.size();
+        if depth > slimit {
+            return Err(ReactionError::ExceedsDepthLimit);
+        }
+        n += 1;
+    }
+    Ok(n)
+}
+
 impl Soup {
     /// Generate an empty soup with the following configuration options:
     pub fn new() -> Self {
@@ -103,22 +125,10 @@ impl Soup {
     /// `self.reduction_limit`.
     // TODO: return a proper error type instead of `String`.
     fn collide(&self, rule: Term, left: Term, right: Term) -> Result<(Term, usize), ReactionError> {
+
+
         let mut expr = app!(rule, left.clone(), right.clone());
-
-        let mut n = 0;
-        for _ in 0..self.reduction_limit {
-            if expr.reduce(lambda_calculus::HAP, 1) == 0 {
-                break;
-            }
-
-            // WARNING: This is EXTREMELY expensive. Calling max_depth is log(depth), and is done
-            // per reduction step. Remove when possible.
-            let depth = expr.size();
-            if depth > self.size_limit {
-                return Err(ReactionError::ExceedsDepthLimit);
-            }
-            n += 1;
-        }
+        let n = reduce_with_limit(&mut expr, self.reduction_limit, self.size_limit)?;
 
         if n == self.reduction_limit {
             return Err(ReactionError::ExceedsReductionLimit);
@@ -262,7 +272,7 @@ impl Soup {
     where
         F: Fn(&Self) -> T,
     {
-        let mut data: Vec<T> = Vec::new(); 
+        let mut data: Vec<T> = Vec::new();
         for i in 0..n {
             let reaction = self.react();
             if (i % polling_interval) == 0 {
