@@ -3,7 +3,7 @@ use futures::executor::block_on;
 use generators::BTreeGen;
 use lambda_calculus::*;
 use std::fs::{read_to_string, File};
-use std::io::{self, BufRead, BufReader, Write};
+use std::io::Write;
 
 /// Simulation analysis
 mod analysis;
@@ -79,26 +79,6 @@ struct Cli {
     log: bool,
 }
 
-/// Read lambda expressions from stdin and create a new soup from the global configuration
-fn read_inputs_into_soup(cfg: &config::Config) -> soup::Soup {
-    let mut expression_strings = Vec::<String>::new();
-    let stdin = io::stdin();
-    let reader = BufReader::new(stdin.lock());
-
-    for line in reader.lines() {
-        match line {
-            Ok(line) => expression_strings.push(line),
-            Err(_) => break,
-        }
-    }
-
-    let expressions = expression_strings
-        .iter()
-        .map(|s| parse(s, Classic).unwrap());
-    let mut soup = soup::Soup::from_config(&cfg.reactor_config);
-    soup.perturb(expressions);
-    soup
-}
 
 fn get_config(cli: &Cli) -> std::io::Result<config::Config> {
     let mut config = if let Some(filename) = &cli.config_file {
@@ -179,7 +159,7 @@ fn main() -> std::io::Result<()> {
     }
 
     let mut soup = if cli.read_stdin {
-        read_inputs_into_soup(&config)
+        soup::read_inputs_into_soup(&config.reactor_config)
     } else {
         generate_expressions_and_seed_soup(&config)
     };
