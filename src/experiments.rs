@@ -33,7 +33,30 @@ fn xorset_test(a: &Term, b: &Term) -> bool {
         && bb.is_isomorphic_to(a)
 }
 
-fn pairwise_compare<F>(terms: &[Term], test: F) -> Option<(Term, Term)>
+
+fn not_xorset_test(a: &Term, b: &Term) -> bool {
+    if a.is_isomorphic_to(b) {
+        return false
+    }
+
+    let mut aa = app(a.clone(), a.clone());
+    let mut ab = app(a.clone(), b.clone());
+    let mut ba = app(b.clone(), a.clone());
+    let mut bb = app(b.clone(), b.clone());
+
+    let _ = reduce_with_limit(&mut aa, 512, 1024);
+    let _ = reduce_with_limit(&mut ba, 512, 1024);
+    let _ = reduce_with_limit(&mut ab, 512, 1024);
+    let _ = reduce_with_limit(&mut bb, 512, 1024);
+
+    aa.is_isomorphic_to(b)
+        && ab.is_isomorphic_to(b)
+        && ba.is_isomorphic_to(b)
+        && bb.is_isomorphic_to(a)
+}
+
+
+fn pairwise_compare<F>(terms: &[Term], test: F, symmetric: bool) -> Option<(Term, Term)>
 where
     F: Fn(&Term, &Term) -> bool,
 {
@@ -42,7 +65,7 @@ where
             if test(t1, t2) {
                 return Some((t1.clone(), t2.clone()));
             }
-            if j >= i {
+            if j >= i && symmetric {
                 break;
             }
         }
@@ -71,7 +94,7 @@ async fn simulate_soup_murder(
     let check_series =
         soup.simulate_and_poll_with_killer(run_length, polling_interval, false, |s| {
             let bests = s.k_most_frequent_exprs(10);
-            let pairs = pairwise_compare(&bests, xorset_test);
+            let pairs = pairwise_compare(&bests, not_xorset_test, false);
             (pairs.clone(), pairs.is_some())
         });
     (id, check_series)
