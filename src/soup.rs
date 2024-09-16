@@ -5,7 +5,6 @@ use crate::config;
 use lambda_calculus::{abs, app, Term, Var};
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
-use std::io::{self, BufRead, BufReader};
 
 /// The principal AlChemy object. The `Soup` struct contains a set of
 /// lambda expressions, and rules for composing and filtering them.
@@ -126,8 +125,6 @@ impl Soup {
     /// `self.reduction_limit`.
     // TODO: return a proper error type instead of `String`.
     fn collide(&self, rule: Term, left: Term, right: Term) -> Result<(Term, usize), ReactionError> {
-
-
         let mut expr = app!(rule, left.clone(), right.clone());
         let n = reduce_with_limit(&mut expr, self.reduction_limit, self.size_limit)?;
 
@@ -358,28 +355,6 @@ impl Soup {
     }
 }
 
-/// Read lambda expressions from stdin and create a new soup from the global configuration
-pub fn read_inputs_into_soup(cfg: &config::Reactor) -> Soup {
-    let mut expression_strings = Vec::<String>::new();
-    let stdin = io::stdin();
-    let reader = BufReader::new(stdin.lock());
-
-    for line in reader.lines() {
-        match line {
-            Ok(line) => expression_strings.push(line),
-            Err(_) => break,
-        }
-    }
-
-    let expressions = expression_strings
-        .iter()
-        .map(|s| lambda_calculus::parse(s, lambda_calculus::Classic).unwrap());
-    let mut soup = Soup::from_config(cfg);
-    soup.perturb(expressions);
-    soup
-}
-
-
 impl Tape {
     pub fn final_state(&self) -> &Soup {
         &self.soup
@@ -424,4 +399,3 @@ impl fmt::Display for ReactionError {
 }
 
 impl std::error::Error for ReactionError {}
-

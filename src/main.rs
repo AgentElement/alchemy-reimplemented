@@ -3,7 +3,7 @@ use futures::executor::block_on;
 use generators::BTreeGen;
 use lambda_calculus::*;
 use std::fs::{read_to_string, File};
-use std::io::Write;
+use std::io::{self, BufRead, BufReader, Write};
 
 /// Simulation analysis
 mod analysis;
@@ -30,6 +30,7 @@ pub enum Experiment {
     SyncEntropyTest,
     EntropyTest,
     EntropySeries,
+    SampleSimulate,
 }
 
 #[derive(Parser, Debug)]
@@ -79,7 +80,6 @@ struct Cli {
     log: bool,
 }
 
-
 fn get_config(cli: &Cli) -> std::io::Result<config::Config> {
     let mut config = if let Some(filename) = &cli.config_file {
         let contents = read_to_string(filename)?;
@@ -102,6 +102,26 @@ fn get_config(cli: &Cli) -> std::io::Result<config::Config> {
     }
 
     Ok(config)
+}
+
+/// Read lambda expressions from stdin and return an iterator over them
+pub fn read_inputs() -> impl Iterator<Item = Term> {
+    let mut expression_strings = Vec::<String>::new();
+    let stdin = io::stdin();
+    let reader = BufReader::new(stdin.lock());
+
+    for line in reader.lines() {
+        match line {
+            Ok(line) => expression_strings.push(line),
+            Err(_) => break,
+        }
+    }
+
+    let expressions = expression_strings
+        .iter()
+        .map(|s| lambda_calculus::parse(s, lambda_calculus::Classic).unwrap())
+        .collect::<Vec<Term>>();
+    expressions.into_iter()
 }
 
 pub fn generate_expressions_and_seed_soup(cfg: &config::Config) -> soup::Soup {
@@ -149,17 +169,29 @@ fn main() -> std::io::Result<()> {
 
     if let Some(e) = cli.experiment {
         match e {
-            Experiment::XorsetStability => {},
-            Experiment::XorsetSearch => {block_on(experiments::look_for_xorset());},
-            Experiment::EntropyTest => {block_on(experiments::entropy_test());},
-            Experiment::EntropySeries => {block_on(experiments::entropy_series());},
-            Experiment::SyncEntropyTest => {experiments::sync_entropy_test()},
+            Experiment::XorsetStability => {}
+            Experiment::SyncEntropyTest => experiments::sync_entropy_test(),
+            Experiment::XorsetSearch => {
+                block_on(experiments::look_for_xorset());
+            }
+            Experiment::EntropyTest => {
+                block_on(experiments::entropy_test());
+            }
+            Experiment::EntropySeries => {
+                block_on(experiments::entropy_series());
+            }
+            Experiment::SampleSimulate => {
+                block_on(experiments::simulate_sample());
+            }
         }
         return Ok(());
     }
 
     let mut soup = if cli.read_stdin {
-        soup::read_inputs_into_soup(&config.reactor_config)
+        let mut soup = soup::Soup::from_config(&config.reactor_config);
+        let expressions = read_inputs();
+        soup.perturb(expressions);
+        soup
     } else {
         generate_expressions_and_seed_soup(&config)
     };

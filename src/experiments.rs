@@ -9,12 +9,42 @@ use plotters::prelude::*;
 use crate::{
     config,
     generators::BTreeGen,
+    read_inputs,
     soup::{reduce_with_limit, Soup},
 };
 
+pub async fn simulate_sample() {
+    let mut futures = FuturesUnordered::new();
+    let run_length = 10000000;
+    let polling_interval = 1000;
+    let polls = run_length / polling_interval;
+    let sample = read_inputs().collect::<Vec<Term>>();
+    for i in 0..1000 {
+        futures.push(spawn(simulate_soup_and_produce_entropies(
+            sample.clone().into_iter().cycle().take(10000),
+            i,
+            run_length,
+            polling_interval,
+        )));
+    }
+
+    print!("Soup, ");
+    for i in 0..polls {
+        print!("{}, ", i)
+    }
+    println!();
+    while let Some((id, data)) = futures.next().await {
+        print!("{}, ", id);
+        for i in data {
+            print!("{}, ", i)
+        }
+        println!();
+    }
+}
+
 fn xorset_test(a: &Term, b: &Term) -> bool {
     if a.is_isomorphic_to(b) {
-        return false
+        return false;
     }
 
     let mut aa = app(a.clone(), a.clone());
@@ -33,10 +63,9 @@ fn xorset_test(a: &Term, b: &Term) -> bool {
         && bb.is_isomorphic_to(a)
 }
 
-
 fn not_xorset_test(a: &Term, b: &Term) -> bool {
     if a.is_isomorphic_to(b) {
-        return false
+        return false;
     }
 
     let mut aa = app(a.clone(), a.clone());
@@ -54,7 +83,6 @@ fn not_xorset_test(a: &Term, b: &Term) -> bool {
         && ba.is_isomorphic_to(b)
         && bb.is_isomorphic_to(a)
 }
-
 
 fn pairwise_compare<F>(terms: &[Term], test: F, symmetric: bool) -> Option<(Term, Term)>
 where
@@ -162,6 +190,10 @@ async fn simulate_soup_and_produce_entropies(
     run_length: usize,
     polling_interval: usize,
 ) -> (usize, Vec<f32>) {
+    let mut seed: [u8; 32] = [0; 32];
+    let bytes = id.to_le_bytes();
+    seed[..bytes.len()].copy_from_slice(&bytes);
+
     let mut soup = Soup::from_config(&config::Reactor {
         rules: vec![String::from("\\x.\\y.x y")],
         discard_copy_actions: false,
@@ -171,7 +203,7 @@ async fn simulate_soup_and_produce_entropies(
         discard_parents: false,
         reduction_cutoff: 512,
         size_cutoff: 1024,
-        seed: config::ConfigSeed::new([0; 32]),
+        seed: config::ConfigSeed::new(seed),
     });
     soup.perturb(sample);
     let data = soup.simulate_and_poll(run_length, polling_interval, false, |s: &Soup| {
