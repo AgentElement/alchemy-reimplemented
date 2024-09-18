@@ -31,6 +31,7 @@ pub enum Experiment {
     EntropyTest,
     EntropySeries,
     SampleSimulate,
+    SampleScan,
 }
 
 #[derive(Parser, Debug)]
@@ -171,6 +172,7 @@ fn main() -> std::io::Result<()> {
         match e {
             Experiment::XorsetStability => {}
             Experiment::SyncEntropyTest => experiments::sync_entropy_test(),
+            Experiment::SampleScan => experiments::one_sample_with_dist(),
             Experiment::XorsetSearch => {
                 block_on(experiments::look_for_xorset());
             }
