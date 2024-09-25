@@ -4,11 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::generators::Standardization;
 
-/// Represents a seed for serde RNGs in the configuration file. Mostly here because we want
-/// to ser/de to/from a hex string.
-#[warn(missing_docs)]
-#[derive(Serialize, Deserialize, Debug)]
-pub struct ConfigSeed(Option<[u8; 32]>);
+use crate::utils::{decode_hex, encode_hex};
 
 /// `Config` stores the global configuration of the program.
 #[warn(missing_docs)]
@@ -134,17 +130,6 @@ pub struct FontanaGen {
     pub n_max_free_vars: u32,
 }
 
-impl ConfigSeed {
-    /// Get the seed item
-    pub fn get(&self) -> [u8; 32] {
-        self.0.unwrap_or(thread_rng().gen())
-    }
-
-    pub fn new(seed: [u8; 32]) -> Self {
-        ConfigSeed(Some(seed))
-    }
-}
-
 impl Reactor {
     /// Produce a new `ReactorConfig` struct with default values.
     pub fn new() -> Self {
@@ -233,5 +218,62 @@ impl Config {
 
     pub fn set_verbose_logging(&mut self, logging: bool) {
         self.verbose_logging = logging;
+    }
+}
+
+/// Represents a seed for serde RNGs in the configuration file. Mostly here because we want
+/// to ser/de to/from a hex string.
+#[warn(missing_docs)]
+#[derive(Debug)]
+pub struct ConfigSeed(Option<[u8; 32]>);
+
+impl ConfigSeed {
+    /// Get the seed item
+    pub fn get(&self) -> [u8; 32] {
+        self.0.unwrap_or(thread_rng().gen())
+    }
+
+    pub fn seed(&self) -> Option<[u8; 32]> {
+        self.0
+    }
+
+    pub fn new(seed: [u8; 32]) -> Self {
+        ConfigSeed(Some(seed))
+    }
+
+    pub fn blank() -> Self {
+        ConfigSeed(None)
+    }
+}
+
+/// Manually serialize [u8; 32] to a hex string
+impl Serialize for ConfigSeed {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        if self.seed().is_some() {
+            serializer.serialize_str(&encode_hex(&self.get()))
+        } else {
+            serializer.serialize_none()
+        }
+    }
+}
+
+/// Manually deserialize a hex string to [u8; 32]
+///
+/// SAFETY: `panic!`s when hex string is malformed or of odd length 
+impl<'de> Deserialize<'de> for ConfigSeed {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let seed_string: Option<&str> = serde::de::Deserialize::deserialize(deserializer)?;
+        Ok(if let Some(s) = seed_string {
+            let hexvec = decode_hex(s).unwrap();
+            ConfigSeed::new(hexvec.try_into().unwrap())
+        } else {
+            ConfigSeed::blank()
+        })
     }
 }
