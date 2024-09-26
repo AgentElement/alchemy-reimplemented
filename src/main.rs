@@ -27,6 +27,7 @@ mod utils;
 pub enum Experiment {
     XorsetStability,
     XorsetSearch,
+    AdditionSearch,
     SyncEntropyTest,
     EntropyTest,
     EntropySeries,
@@ -171,6 +172,9 @@ fn main() -> std::io::Result<()> {
     if let Some(e) = cli.experiment {
         match e {
             Experiment::XorsetStability => {}
+            Experiment::AdditionSearch => {
+                block_on(experiments::look_for_add());
+            }
             Experiment::SyncEntropyTest => experiments::sync_entropy_test(),
             Experiment::SampleScan => experiments::one_sample_with_dist(),
             Experiment::XorsetSearch => {

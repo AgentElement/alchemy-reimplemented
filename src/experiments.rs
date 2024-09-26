@@ -1,10 +1,10 @@
 use std::collections::HashMap;
-use std::{error::Error, hash::Hash};
+use std::error::Error;
 
 use async_std::task::spawn;
 use clap::error::Result;
 use futures::{stream::FuturesUnordered, StreamExt};
-use lambda_calculus::{app, Term};
+use lambda_calculus::{app, parse, term::Notation::Classic, Term};
 use plotters::prelude::*;
 
 use crate::{
@@ -13,6 +13,57 @@ use crate::{
     read_inputs,
     soup::{reduce_with_limit, Soup},
 };
+
+async fn simulate_additive_murder(
+    sample: impl Iterator<Item = Term>,
+    id: usize,
+    run_length: usize,
+    polling_interval: usize,
+) -> (usize, Vec<usize>) {
+    let mut soup = Soup::from_config(&config::Reactor {
+        rules: vec![String::from("\\x.\\y.x y")],
+        discard_copy_actions: false,
+        discard_identity: false,
+        discard_free_variable_expressions: true,
+        maintain_constant_population_size: true,
+        discard_parents: false,
+        reduction_cutoff: 512,
+        size_cutoff: 1024,
+        seed: config::ConfigSeed::new([0; 32]),
+    });
+    soup.perturb(sample);
+    let add = parse(r"\m.\n. m ((\m.\n. m (\n.\x.\y. x (n x y)) n) n) (\x.\y.y)", Classic).unwrap();
+    let check_series =
+        soup.simulate_and_poll_with_killer(run_length, polling_interval, false, |s| {
+            (s.collisions(), s.expressions().any(|e| e.is_isomorphic_to(&add)))
+        });
+    (id, check_series)
+}
+
+pub async fn look_for_add() {
+    let mut futures = FuturesUnordered::new();
+    let run_length = 1000000;
+    let polling_interval = 1000;
+    let sample = read_inputs().collect::<Vec<Term>>();
+    for i in 0..1000 {
+        futures.push(spawn(simulate_additive_murder(
+            sample.clone().into_iter().cycle().take(10000),
+            i,
+            run_length,
+            polling_interval,
+        )));
+    }
+
+    print!("Soup, ");
+    println!();
+    while let Some((id, series)) = futures.next().await {
+        print!("{}, ", id);
+        for i in series {
+            print!("{:?}, ", i)
+        }
+        println!();
+    }
+}
 
 pub fn one_sample_with_dist() {
     let run_length = 1000000;
