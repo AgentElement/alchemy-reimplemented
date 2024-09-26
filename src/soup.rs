@@ -11,6 +11,7 @@ use rand_chacha::ChaCha8Rng;
 #[derive(Debug, Clone)]
 pub struct Soup {
     expressions: Vec<Term>,
+    n_collisions: usize,
     reaction_rules: Vec<Term>,
     reduction_limit: usize,
     size_limit: usize,
@@ -106,6 +107,7 @@ impl Soup {
             discard_identity: cfg.discard_identity,
             discard_free_variable_expressions: cfg.discard_free_variable_expressions,
             rng,
+            n_collisions: 0,
         }
     }
 
@@ -146,6 +148,7 @@ impl Soup {
             return Err(ReactionError::HasFreeVariables);
         }
 
+
         Ok((expr, n))
     }
 
@@ -175,6 +178,7 @@ impl Soup {
         let mut n_successful_reactions = 0;
         for rule in &self.reaction_rules {
             let result = self.collide(rule.clone(), left.clone(), right.clone());
+            self.n_collisions += 1;
             match result {
                 Ok((value, n)) => {
                     let datum = CollisionResult {
@@ -352,6 +356,10 @@ impl Soup {
     /// Get the number of expressions in the soup.
     pub fn len(&self) -> usize {
         self.expressions.len()
+    }
+
+    pub fn collisions(&self) -> usize {
+        self.n_collisions
     }
 }
 
