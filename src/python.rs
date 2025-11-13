@@ -288,7 +288,6 @@ impl PyFontanaGen {
 
 // ============ Utilities ============
 
-#[allow(clippy::useless_conversion)]
 #[pyfunction]
 fn decode_hex_py(hex_string: &str) -> PyResult<Vec<u8>> {
     decode_hex(hex_string).map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
